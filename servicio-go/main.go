@@ -21,6 +21,7 @@ func main() {
 		panic("REDIS_URL inválida: " + err.Error())
 	}
 	rdb := redis.NewClient(opts)
+	store := NewRedisStore(rdb)
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
@@ -43,6 +44,8 @@ func main() {
 			"database": "connected",
 		})
 	})
+
+	registrarRutas(r, store)
 
 	port := os.Getenv("PORT")
 	if port == "" {
