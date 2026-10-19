@@ -6,11 +6,13 @@ import com.finanzas.transacciones.dto.ResumenMesResponse;
 import com.finanzas.transacciones.dto.TransaccionRequest;
 import com.finanzas.transacciones.dto.TransaccionResponse;
 import com.finanzas.transacciones.model.Presupuesto;
+import com.finanzas.transacciones.model.TipoTransaccion;
 import com.finanzas.transacciones.model.Transaccion;
 import com.finanzas.transacciones.repository.PresupuestoRepository;
 import com.finanzas.transacciones.repository.TransaccionRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
@@ -43,12 +45,15 @@ public class TransaccionService {
         return transaccionRepository.save(t);
     }
 
-    public List<Transaccion> listar(UUID usuarioId, YearMonth mes) {
-        if (mes != null) {
-            return transaccionRepository.findByUsuarioIdAndFechaBetweenOrderByFechaDesc(
-                    usuarioId, mes.atDay(1), mes.atEndOfMonth());
-        }
-        return transaccionRepository.findByUsuarioIdOrderByFechaDesc(usuarioId);
+    public List<Transaccion> listar(UUID usuarioId, YearMonth mes,
+                                    TipoTransaccion tipo, String categoria) {
+        LocalDate inicio = mes != null ? mes.atDay(1) : null;
+        LocalDate fin = mes != null ? mes.atEndOfMonth() : null;
+        String cat = categoria != null && !categoria.isBlank()
+                ? categoria.trim().toLowerCase()
+                : null;
+        return transaccionRepository.findAll(
+                TransaccionRepository.conFiltros(usuarioId, tipo, cat, inicio, fin));
     }
 
     public Optional<Transaccion> obtener(UUID usuarioId, UUID id) {
