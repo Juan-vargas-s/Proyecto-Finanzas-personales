@@ -26,6 +26,26 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
+	// CORS: el frontend (Next.js) llama a este servicio vía el API Gateway
+	// desde otro origen (puerto 3000), por lo que hay que responder los
+	// preflights OPTIONS y enviar las cabeceras de acceso.
+	r.Use(func(c *gin.Context) {
+		origen := c.GetHeader("Origin")
+		if origen == "" {
+			origen = "*"
+		}
+		c.Header("Access-Control-Allow-Origin", origen)
+		c.Header("Vary", "Origin")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		c.Header("Access-Control-Max-Age", "600")
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	})
+
 	r.GET("/health", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 		defer cancel()

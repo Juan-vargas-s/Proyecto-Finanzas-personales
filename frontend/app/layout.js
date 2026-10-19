@@ -1,3 +1,5 @@
+import "./globals.css";
+
 export const metadata = {
   title: "Finanzas Personales",
   description: "Sistema de finanzas personales en microservicios",
