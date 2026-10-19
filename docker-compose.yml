@@ -87,6 +87,8 @@ services:
     build: ./servicio-go
     environment:
       REDIS_URL: ${REDIS_URL}
+      JAVA_SERVICE_URL: ${JAVA_SERVICE_URL}
+      JWT_SECRET: ${JWT_SECRET}
       PORT: 3002
     depends_on:
       redis:
