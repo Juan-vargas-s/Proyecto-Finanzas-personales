@@ -2,6 +2,7 @@ package com.finanzas.transacciones.controller;
 
 import com.finanzas.transacciones.dto.TransaccionRequest;
 import com.finanzas.transacciones.dto.TransaccionResponse;
+import com.finanzas.transacciones.model.TipoTransaccion;
 import com.finanzas.transacciones.model.Transaccion;
 import com.finanzas.transacciones.service.TransaccionService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,9 +51,11 @@ public class TransaccionController {
     public List<TransaccionResponse> listar(
             HttpServletRequest request,
             @RequestParam(required = false) UUID usuarioId,
-            @RequestParam(required = false) String mes) {
+            @RequestParam(required = false) String mes,
+            @RequestParam(required = false) TipoTransaccion tipo,
+            @RequestParam(required = false) String categoria) {
         UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
-        return service.listar(uid, parseMes(mes)).stream()
+        return service.listar(uid, parseMes(mes), tipo, categoria).stream()
                 .map(this::toResponse)
                 .toList();
     }
