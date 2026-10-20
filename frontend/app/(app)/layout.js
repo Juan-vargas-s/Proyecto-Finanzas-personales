@@ -63,6 +63,9 @@ export default function AppLayout({ children }) {
         <div className="usuario">
           <Notificaciones usuarioId={uid} />
           <span className="nombre-usuario">{nombre}</span>
+          <Link href="/cambiar-password" className="btn btn-secundario btn-mini">
+            Contraseña
+          </Link>
           <button className="btn btn-secundario btn-mini" onClick={salir}>
             Salir
           </button>

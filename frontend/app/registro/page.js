@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, setSesion } from "../../lib/api";
+import { api } from "../../lib/api";
 
 const MONEDAS = ["MXN", "USD", "EUR", "COP", "ARS", "PEN", "CLP"];
 
@@ -13,6 +13,7 @@ export default function RegistroPage() {
     nombre: "",
     email: "",
     password: "",
+    passwordConfirm: "",
     monedaPreferida: "MXN",
   });
   const [error, setError] = useState("");
@@ -25,14 +26,26 @@ export default function RegistroPage() {
   async function enviar(e) {
     e.preventDefault();
     setError("");
+
+    // Validación cliente: la confirmación debe coincidir con la contraseña
+    if (form.password !== form.passwordConfirm) {
+      setError("Las contraseñas no coinciden");
+      return;
+    }
+
     setCargando(true);
     try {
       const data = await api("/api/auth/registro", {
         method: "POST",
         body: form,
       });
-      setSesion(data.token, data.usuario);
-      router.push("/dashboard");
+      // La cuenta queda pendiente de verificación por email
+      if (data.email) {
+        sessionStorage.setItem("finanzas_verificar_email", data.email);
+        router.push(`/verificar?email=${encodeURIComponent(data.email)}`);
+      } else {
+        router.push("/verificar");
+      }
     } catch (err) {
       setError(err.message);
       setCargando(false);
@@ -80,6 +93,18 @@ export default function RegistroPage() {
               autoComplete="new-password"
               value={form.password}
               onChange={cambiar("password")}
+              minLength={6}
+              required
+            />
+          </div>
+          <div className="campo">
+            <label htmlFor="passwordConfirm">Confirmar contraseña</label>
+            <input
+              id="passwordConfirm"
+              type="password"
+              autoComplete="new-password"
+              value={form.passwordConfirm}
+              onChange={cambiar("passwordConfirm")}
               minLength={6}
               required
             />

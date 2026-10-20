@@ -8,10 +8,13 @@ datasource db {
 }
 
 model Usuario {
-  id              String   @id @default(uuid())
-  nombre          String
-  email           String   @unique
-  passwordHash    String
-  monedaPreferida String   @default("MXN")
-  createdAt       DateTime @default(now())
+  id                 String    @id @default(uuid())
+  nombre             String
+  email              String    @unique
+  passwordHash       String
+  monedaPreferida    String    @default("MXN")
+  emailVerificado    Boolean   @default(false)
+  verificationToken  String?
+  verificationExpires DateTime?
+  createdAt          DateTime  @default(now())
 }
