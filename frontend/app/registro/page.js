@@ -4,8 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "../../lib/api";
-
-const MONEDAS = ["MXN", "USD", "EUR", "COP", "ARS", "PEN", "CLP"];
+import { MONEDAS } from "../../lib/monedas";
 
 export default function RegistroPage() {
   const router = useRouter();

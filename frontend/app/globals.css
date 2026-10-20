@@ -113,19 +113,100 @@ h3 {
 }
 
 .usuario {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
 .nombre-usuario {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   color: var(--texto-2);
   font-size: 0.9rem;
-  max-width: 160px;
+  background: transparent;
+  border: none;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  cursor: pointer;
+  max-width: 180px;
+}
+
+.nombre-usuario .nombre-texto {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.nombre-usuario:hover,
+.nombre-usuario.abierto {
+  color: var(--texto);
+  background: var(--panel-2);
+}
+
+.nombre-usuario .flecha {
+  font-size: 0.65rem;
+}
+
+.nombre-usuario.abierto .flecha {
+  transform: rotate(180deg);
+}
+
+/* ---------- Menú del perfil ---------- */
+.menu-usuario {
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  right: 0;
+  min-width: 220px;
+  z-index: 40;
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  padding: 0.4rem;
+}
+
+.menu-seccion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.menu-titulo {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--texto-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.menu-aviso {
+  font-size: 0.8rem;
+  color: var(--error);
+}
+
+.menu-separador {
+  border: none;
+  border-top: 1px solid var(--borde);
+  margin: 0.25rem 0;
+}
+
+.menu-item {
+  display: block;
+  width: 100%;
+  color: var(--texto);
+  padding: 0.5rem 0.55rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.menu-item:hover {
+  background: var(--panel-2);
+  text-decoration: none;
+}
+
 
 .contenido {
   flex: 1;
@@ -698,6 +779,10 @@ h3 {
   }
 
   .nombre-usuario {
+    max-width: none;
+  }
+
+  .nombre-usuario .nombre-texto {
     display: none;
   }
 
