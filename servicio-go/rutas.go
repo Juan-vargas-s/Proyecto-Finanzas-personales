@@ -203,7 +203,7 @@ func verificarPresupuestosHandler(c *gin.Context, store *RedisStore, usuarioID s
 		var est PresupuestoEstado
 		if json.NewDecoder(resp2.Body).Decode(&est) == nil && est.LimiteMensual > 0 {
 			porc := est.GastoAcumulado / est.LimiteMensual * 100
-			if porc >= 80 {
+			if porc >= 80 && !store.YaAlertado(ctx, usuarioID, mes, est.Categoria) {
 				n := Notificacion{
 					ID:       uuid.NewString(),
 					Mensaje:  fmt.Sprintf("Llegaste al %.1f%% de tu presupuesto de %s", porc, est.Categoria),
@@ -211,8 +211,10 @@ func verificarPresupuestosHandler(c *gin.Context, store *RedisStore, usuarioID s
 					Leida:    false,
 					CreadaEn: time.Now().UTC().Format(time.RFC3339),
 				}
-				_ = store.CrearNotificacion(ctx, usuarioID, n)
-				creadas++
+				if store.CrearNotificacion(ctx, usuarioID, n) == nil {
+					store.MarcarAlertado(ctx, usuarioID, mes, est.Categoria)
+					creadas++
+				}
 			}
 		}
 		resp2.Body.Close()

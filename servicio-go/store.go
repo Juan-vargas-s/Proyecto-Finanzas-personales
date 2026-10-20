@@ -27,6 +27,21 @@ func (s *RedisStore) claveNotifs(usuarioID string) string {
 	return fmt.Sprintf("notifs:%s", usuarioID)
 }
 
+func (s *RedisStore) claveAlertas(usuarioID, mes string) string {
+	return fmt.Sprintf("alertas:%s:%s", usuarioID, mes)
+}
+
+// YaAlertado indica si ya se avisó al usuario por esa categoría en ese mes
+// (evita duplicar la misma alerta en cada verificación).
+func (s *RedisStore) YaAlertado(ctx context.Context, usuarioID, mes, categoria string) bool {
+	usuario, err := s.rdb.SIsMember(ctx, s.claveAlertas(usuarioID, mes), categoria).Result()
+	return err == nil && usuario
+}
+
+func (s *RedisStore) MarcarAlertado(ctx context.Context, usuarioID, mes, categoria string) {
+	_ = s.rdb.SAdd(ctx, s.claveAlertas(usuarioID, mes), categoria).Err()
+}
+
 func (s *RedisStore) CrearMeta(ctx context.Context, usuarioID string, m Meta) error {
 	b, _ := json.Marshal(m)
 	_, err := s.rdb.HSet(ctx, s.claveMeta(usuarioID), m.ID, b).Result()

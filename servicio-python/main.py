@@ -5,6 +5,7 @@ from uuid import UUID
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from cliente_java import obtener_resumen, obtener_transacciones
@@ -12,6 +13,15 @@ from cliente_java import obtener_resumen, obtener_transacciones
 load_dotenv()
 
 app = FastAPI(title="Servicio de Reportes", version="1.0.0")
+
+# El frontend (Next.js) consume este servicio a través del API Gateway (Nginx),
+# así que hay que permitir peticiones cross-origin desde el navegador.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 PATRON_MES = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 

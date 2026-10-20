@@ -6,6 +6,8 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME_AUTH}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -16,6 +18,7 @@ services:
       retries: 10
     networks:
       - backend
+      - dbhost
 
   redis:
     image: redis:7-alpine
@@ -104,7 +107,10 @@ services:
 
   # ========== FRONTEND ==========
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_GATEWAY: ${NEXT_PUBLIC_API_GATEWAY}
     environment:
       NEXT_PUBLIC_API_GATEWAY: ${NEXT_PUBLIC_API_GATEWAY}
     ports:
@@ -143,6 +149,7 @@ networks:
   frontend:
   backend:
     internal: true
+  dbhost:
 
 # ========== VOLUMES ==========
 volumes:
