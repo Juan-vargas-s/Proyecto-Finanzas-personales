@@ -38,6 +38,17 @@ const perfilUpdateSchema = z.object({
   monedaPreferida: z.string().min(1).max(5).optional(),
 });
 
+const cambioPasswordSchema = z
+  .object({
+    passwordActual: z.string().min(1, 'Debes ingresar la contraseña actual'),
+    passwordNueva: z.string().min(6, 'La nueva contraseña debe tener al menos 6 caracteres'),
+    passwordConfirm: z.string().min(1, 'Debes confirmar la nueva contraseña'),
+  })
+  .refine((d) => d.passwordNueva === d.passwordConfirm, {
+    message: 'Las nuevas contraseñas no coinciden',
+    path: ['passwordConfirm'],
+  });
+
 // ---------- Middleware de autenticación ----------
 function authMiddleware(req, res, next) {
   const header = req.headers.authorization || '';
@@ -173,6 +184,46 @@ app.put('/api/auth/perfil', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Error al actualizar perfil:', error);
     return res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ---------- Cambio de contraseña ----------
+app.put('/api/auth/cambiar-password', authMiddleware, async (req, res) => {
+  const parsed = cambioPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.errors[0].message });
+  }
+  const { passwordActual, passwordNueva } = parsed.data;
+
+  try {
+    const usuario = await prisma.usuario.findUnique({ where: { id: req.usuarioId } });
+    if (!usuario) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Verificar que la contraseña actual sea correcta
+    const actualOk = await bcrypt.compare(passwordActual, usuario.passwordHash);
+    if (!actualOk) {
+      return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
+    }
+
+    // La nueva contraseña debe ser distinta a la actual
+    if (passwordActual === passwordNueva) {
+      return res.status(400).json({
+        error: 'La nueva contraseña debe ser distinta a la actual',
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(passwordNueva, 10);
+    await prisma.usuario.update({
+      where: { id: usuario.id },
+      data: { passwordHash },
+    });
+
+    return res.json({ mensaje: 'Contraseña actualizada correctamente' });
+  } catch (error) {
+    console.error('Error al cambiar contraseña:', error);
+    return res.status(500).json({ error: 'Error interno al cambiar la contraseña' });
   }
 });
 
