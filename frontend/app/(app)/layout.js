@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  api,
   cerrarSesion,
+  getUsuario,
   getToken,
   nombreUsuario,
+  setUsuario,
   usuarioId,
 } from "../../lib/api";
+import { MONEDAS } from "../../lib/monedas";
 import Notificaciones from "../../components/Notificaciones";
 
 const PAGINAS = [
@@ -23,6 +27,10 @@ export default function AppLayout({ children }) {
   const [listo, setListo] = useState(false);
   const [uid, setUid] = useState(null);
   const [nombre, setNombre] = useState("");
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const [moneda, setMoneda] = useState("");
+  const [estadoMoneda, setEstadoMoneda] = useState("");
+  const menuRef = useRef(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -31,12 +39,47 @@ export default function AppLayout({ children }) {
     }
     setUid(usuarioId());
     setNombre(nombreUsuario() || "Usuario");
+    setMoneda(getUsuario()?.monedaPreferida || "");
     setListo(true);
   }, [router]);
+
+  // Cierra el menú del perfil al hacer clic fuera de él
+  useEffect(() => {
+    if (!menuAbierto) return;
+    function clicFuera(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuAbierto(false);
+      }
+    }
+    document.addEventListener("mousedown", clicFuera);
+    return () => document.removeEventListener("mousedown", clicFuera);
+  }, [menuAbierto]);
+
+  // Al navegar a otra página, deja el menú cerrado
+  useEffect(() => {
+    setMenuAbierto(false);
+  }, [pathname]);
 
   function salir() {
     cerrarSesion();
     router.replace("/login");
+  }
+
+  /** Guarda la moneda preferida del usuario en su perfil. */
+  async function cambiarMoneda(e) {
+    const nueva = e.target.value;
+    setMoneda(nueva);
+    setEstadoMoneda("Guardando…");
+    try {
+      const usuario = await api("/api/auth/perfil", {
+        method: "PUT",
+        body: { monedaPreferida: nueva },
+      });
+      if (usuario) setUsuario(usuario);
+      setEstadoMoneda("");
+    } catch (err) {
+      setEstadoMoneda(err.message);
+    }
   }
 
   if (!listo) {
@@ -60,15 +103,52 @@ export default function AppLayout({ children }) {
             </Link>
           ))}
         </nav>
-        <div className="usuario">
+        <div className="usuario" ref={menuRef}>
           <Notificaciones usuarioId={uid} />
-          <span className="nombre-usuario">{nombre}</span>
-          <Link href="/cambiar-password" className="btn btn-secundario btn-mini">
-            Contraseña
-          </Link>
+          <button
+            type="button"
+            className={`nombre-usuario${menuAbierto ? " abierto" : ""}`}
+            onClick={() => setMenuAbierto((v) => !v)}
+          >
+            <span aria-hidden="true">👤</span>
+            <span className="nombre-texto">{nombre}</span>
+            <span aria-hidden="true" className="flecha">
+              ▾
+            </span>
+          </button>
           <button className="btn btn-secundario btn-mini" onClick={salir}>
             Salir
           </button>
+
+          {menuAbierto && (
+            <div className="menu-usuario">
+              <div className="menu-seccion">
+                <span className="menu-titulo">Moneda preferida</span>
+                <select
+                  aria-label="Moneda preferida"
+                  value={moneda}
+                  onChange={cambiarMoneda}
+                >
+                  {MONEDAS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+                {estadoMoneda && (
+                  <span className="menu-aviso">{estadoMoneda}</span>
+                )}
+              </div>
+              <hr className="menu-separador" />
+              <Link
+                href="/cambiar-password"
+                className="menu-item"
+                onClick={() => setMenuAbierto(false)}
+              >
+                🔑 Cambiar contraseña
+              </Link>
+            </div>
+          )}
         </div>
       </header>
       <main className="contenido">{children}</main>

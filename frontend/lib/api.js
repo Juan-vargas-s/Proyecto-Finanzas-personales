@@ -48,6 +48,11 @@ export function setSesion(token, usuario) {
   window.localStorage.setItem(CLAVE_USUARIO, JSON.stringify(usuario));
 }
 
+/** Actualiza los datos del usuario guardado (p. ej. al cambiar la moneda). */
+export function setUsuario(usuario) {
+  window.localStorage.setItem(CLAVE_USUARIO, JSON.stringify(usuario));
+}
+
 export function cerrarSesion() {
   window.localStorage.removeItem(CLAVE_TOKEN);
   window.localStorage.removeItem(CLAVE_USUARIO);
