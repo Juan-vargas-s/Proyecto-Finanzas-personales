@@ -14,21 +14,12 @@ export default function VerificarPage() {
   const [cargando, setCargando] = useState(false);
   const [reenviando, setReenviando] = useState(false);
 
-  // Pre-cargar el email y el código de desarrollo (si no hay SMTP) que dejó
-  // la página de registro en sessionStorage y en la URL.
+  // Pre-cargar el email que dejó la página de registro en la URL / sessionStorage.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const emailUrl = params.get("email") || sessionStorage.getItem("finanzas_verificar_email") || "";
     if (emailUrl) setEmail(emailUrl);
-
-    const codigoDev = sessionStorage.getItem("finanzas_codigo_dev");
-    if (codigoDev) {
-      setAviso(`Modo desarrollo (sin SMTP): tu código es ${codigoDev}`);
-      setCodigo(codigoDev);
-      // Se usa una sola vez: borrarlo para que un reenvío limpie el aviso
-      sessionStorage.removeItem("finanzas_codigo_dev");
-    }
   }, []);
 
   async function enviar(e) {
@@ -58,17 +49,12 @@ export default function VerificarPage() {
     }
     setReenviando(true);
     try {
-      const data = await api("/api/auth/reenviar-codigo", {
+      await api("/api/auth/reenviar-codigo", {
         method: "POST",
         body: { email },
       });
-      if (data.codigo) {
-        setAviso(`Modo desarrollo (sin SMTP): tu código es ${data.codigo}`);
-        setCodigo(data.codigo);
-      } else {
-        setAviso("Código reenviado. Revisa tu correo (revisa también spam)");
-        setCodigo("");
-      }
+      setAviso("Código reenviado. Revisa tu correo (revisa también spam)");
+      setCodigo("");
     } catch (err) {
       setError(err.message);
     } finally {
