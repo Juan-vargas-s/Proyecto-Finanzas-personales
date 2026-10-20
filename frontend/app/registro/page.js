@@ -13,6 +13,7 @@ export default function RegistroPage() {
     nombre: "",
     email: "",
     password: "",
+    passwordConfirm: "",
     monedaPreferida: "MXN",
   });
   const [error, setError] = useState("");
@@ -25,6 +26,13 @@ export default function RegistroPage() {
   async function enviar(e) {
     e.preventDefault();
     setError("");
+
+    // Validación cliente: la confirmación debe coincidir con la contraseña
+    if (form.password !== form.passwordConfirm) {
+      setError("Las contraseñas no coinciden");
+      return;
+    }
+
     setCargando(true);
     try {
       const data = await api("/api/auth/registro", {
@@ -80,6 +88,18 @@ export default function RegistroPage() {
               autoComplete="new-password"
               value={form.password}
               onChange={cambiar("password")}
+              minLength={6}
+              required
+            />
+          </div>
+          <div className="campo">
+            <label htmlFor="passwordConfirm">Confirmar contraseña</label>
+            <input
+              id="passwordConfirm"
+              type="password"
+              autoComplete="new-password"
+              value={form.passwordConfirm}
+              onChange={cambiar("passwordConfirm")}
               minLength={6}
               required
             />

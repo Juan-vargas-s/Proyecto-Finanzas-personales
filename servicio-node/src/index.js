@@ -15,12 +15,18 @@ app.use(cors());
 app.use(express.json());
 
 // ---------- Esquemas de validación ----------
-const registroSchema = z.object({
-  nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
-  monedaPreferida: z.string().min(1).max(5).optional(),
-});
+const registroSchema = z
+  .object({
+    nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+    email: z.string().email('Email inválido'),
+    password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+    passwordConfirm: z.string().min(1, 'Debes confirmar la contraseña'),
+    monedaPreferida: z.string().min(1).max(5).optional(),
+  })
+  .refine((d) => d.password === d.passwordConfirm, {
+    message: 'Las contraseñas no coinciden',
+    path: ['passwordConfirm'],
+  });
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
