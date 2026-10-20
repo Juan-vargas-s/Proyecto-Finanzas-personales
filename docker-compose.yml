@@ -39,6 +39,14 @@ services:
       PORT: 3001
       DATABASE_URL_AUTH: ${DATABASE_URL_AUTH}
       JWT_SECRET: ${JWT_SECRET}
+      # SMTP opcional: si SMTP_HOST/EMAIL_FROM no se definen, el servicio
+      # funciona en modo desarrollo (el código queda en consola y en la
+      # respuesta del endpoint, sin enviar correos).
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
     depends_on:
       postgres:
         condition: service_healthy
