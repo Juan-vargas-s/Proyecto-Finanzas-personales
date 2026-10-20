@@ -56,6 +56,10 @@ services:
       start_period: 30s
     networks:
       - backend
+      # SMTP: el envío del código de verificación necesita salir a internet.
+      # La red backend es internal:true (sin internet), así que el servicio
+      # también vive en la red frontend (con salida externa).
+      - frontend
 
   servicio-java:
     build: ./servicio-java
