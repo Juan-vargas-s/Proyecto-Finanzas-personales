@@ -12,11 +12,10 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
 
-// ---------- SMTP (opcional) ----------
-// SMTP solo se usa si se definen SMTP_HOST y EMAIL_FROM en el entorno.
-// Sin SMTP la app funciona en "modo desarrollo": el código de 6 dígitos se
-// imprime en la consola del servicio y se devuelve en la respuesta para
-// probar el flujo de verificación.
+// ---------- SMTP (obligatorio) ----------
+// El registro de cuentas exige enviar un código por correo, así que SMTP debe
+// estar configurado. Sin SMTP_HOST/EMAIL_FROM los endpoints de registro y
+// reenvío responden 503 y no se crean cuentas (ya existe Forma de verificado, login sigue funcionando).
 const SMTP_HOST = process.env.SMTP_HOST || '';
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_USER = process.env.SMTP_USER || '';
@@ -36,7 +35,7 @@ const transporter = smtpHabilitado
 if (smtpHabilitado) {
   console.log(`SMTP habilitado (host: ${SMTP_HOST}:${SMTP_PORT}, desde: ${EMAIL_FROM})`);
 } else {
-  console.log('SMTP no configurado: verificación por email en MODO DESARROLLO (códigos en consola)');
+  console.warn('SMTP NO configurado: el registro de nuevas cuentas está DESHABILITADO hasta definir SMTP_HOST/EMAIL_FROM');
 }
 
 app.use(cors());
@@ -121,11 +120,8 @@ function generarCodigo() {
 }
 
 async function enviarCodigoVerificacion(email, nombre, codigo) {
-  if (!transporter) {
-    // Sin SMTP: modo desarrollo
-    console.log(`[MODO DESARROLLO] Código de verificación para ${email}: ${codigo}`);
-    return false;
-  }
+  // SMTP es obligatorio: si el envío falla lanza y el endpoint responde error
+  // (los endpoints garantizan que transporter exista antes de llamar aquí).
   await transporter.sendMail({
     from: EMAIL_FROM,
     to: email,
@@ -141,7 +137,6 @@ async function enviarCodigoVerificacion(email, nombre, codigo) {
       <p>Expira en <strong>15 minutos</strong>. Si no solicitaste este código, ignora este correo.</p>
     `,
   });
-  return true;
 }
 
 // ---------- Health ----------
@@ -155,15 +150,21 @@ app.get('/health', async (req, res) => {
 });
 
 // ---------- Registro ----------
-// Ya no inicia sesión automáticamente: crea la cuenta pendiente de verificación
-// y envía un código de 6 dígitos al correo (por SMTP, o en pantalla/consola si
-// no hay SMTP configurado).
+// Ya no inicia sesión automáticamente: envía un código de 6 dígitos al correo
+// (SMTP obligatorio) y crea la cuenta pendiente de verificación. El correo se
+// envía ANTES de crear la cuenta: si el envío falla no queda cuenta huérfana.
 app.post('/api/auth/registro', async (req, res) => {
   const parsed = registroSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.errors[0].message });
   }
   const { nombre, email, password, monedaPreferida } = parsed.data;
+
+  if (!smtpHabilitado) {
+    return res.status(503).json({
+      error: 'El servidor de correo no está configurado. Contacta al administrador',
+    });
+  }
 
   try {
     const existente = await prisma.usuario.findUnique({ where: { email } });
@@ -173,6 +174,7 @@ app.post('/api/auth/registro', async (req, res) => {
       }
       // La cuenta existe pero no está verificada: reenviar código
       const codigo = generarCodigo();
+      await enviarCodigoVerificacion(email, existente.nombre, codigo);
       await prisma.usuario.update({
         where: { id: existente.id },
         data: {
@@ -180,18 +182,17 @@ app.post('/api/auth/registro', async (req, res) => {
           verificationExpires: new Date(Date.now() + DURACION_CODIGO_MS),
         },
       });
-      const enviado = await enviarCodigoVerificacion(email, existente.nombre, codigo);
       return res.status(201).json({
         requiereVerificacion: true,
         email,
         mensaje: 'Reenviamos un código a tu correo',
-        enviado,
-        ...(!enviado ? { codigo } : {}),
       });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
     const codigo = generarCodigo();
+    await enviarCodigoVerificacion(email, nombre, codigo);
+
     const usuario = await prisma.usuario.create({
       data: {
         nombre,
@@ -204,19 +205,16 @@ app.post('/api/auth/registro', async (req, res) => {
       },
     });
 
-    const enviado = await enviarCodigoVerificacion(email, nombre, codigo);
-
     return res.status(201).json({
       requiereVerificacion: true,
       email,
       mensaje: 'Cuenta creada. Revisa tu correo para el código de verificación',
-      enviado,
-      // En modo desarrollo (sin SMTP) el código va en la respuesta para probar
-      ...(!enviado ? { codigo } : {}),
     });
   } catch (error) {
     console.error('Error en registro:', error);
-    return res.status(500).json({ error: 'Error interno al registrar' });
+    return res.status(502).json({
+      error: 'No se pudo enviar el correo de verificación. Intenta de nuevo más tarde',
+    });
   }
 });
 
@@ -384,6 +382,12 @@ app.post('/api/auth/reenviar-codigo', async (req, res) => {
     return res.status(400).json({ error: 'Email obligatorio' });
   }
 
+  if (!smtpHabilitado) {
+    return res.status(503).json({
+      error: 'El servidor de correo no está configurado. Contacta al administrador',
+    });
+  }
+
   try {
     const usuario = await prisma.usuario.findUnique({ where: { email } });
     if (!usuario) {
@@ -394,6 +398,7 @@ app.post('/api/auth/reenviar-codigo', async (req, res) => {
     }
 
     const codigo = generarCodigo();
+    await enviarCodigoVerificacion(email, usuario.nombre, codigo);
     await prisma.usuario.update({
       where: { id: usuario.id },
       data: {
@@ -402,17 +407,12 @@ app.post('/api/auth/reenviar-codigo', async (req, res) => {
       },
     });
 
-    const enviado = await enviarCodigoVerificacion(email, usuario.nombre, codigo);
-
-    return res.json({
-      mensaje: 'Código reenviado. Revisa tu correo',
-      enviado,
-      // En modo desarrollo (sin SMTP) el código va en la respuesta para probar
-      ...(!enviado ? { codigo } : {}),
-    });
+    return res.json({ mensaje: 'Código reenviado. Revisa tu correo' });
   } catch (error) {
     console.error('Error al reenviar código:', error);
-    return res.status(500).json({ error: 'Error interno al reenviar' });
+    return res.status(502).json({
+      error: 'No se pudo enviar el correo de verificación. Intenta de nuevo más tarde',
+    });
   }
 });
 
