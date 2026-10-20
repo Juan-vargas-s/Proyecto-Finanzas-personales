@@ -622,6 +622,20 @@ h3 {
   margin: 0 0 1.4rem;
 }
 
+/* Botón secundario dentro de la auth-card (ej. reenviar código) */
+.auth-card .btn + .btn,
+.auth-card .alerta + .btn {
+  margin-top: 0.75rem;
+}
+
+/* Código de verificación de 6 dígitos */
+.codigo-input {
+  text-align: center;
+  letter-spacing: 10px;
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .pie {
   text-align: center;
   color: var(--texto-2);

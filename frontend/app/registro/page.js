@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, setSesion } from "../../lib/api";
+import { api } from "../../lib/api";
 
 const MONEDAS = ["MXN", "USD", "EUR", "COP", "ARS", "PEN", "CLP"];
 
@@ -39,8 +39,13 @@ export default function RegistroPage() {
         method: "POST",
         body: form,
       });
-      setSesion(data.token, data.usuario);
-      router.push("/dashboard");
+      // La cuenta queda pendiente de verificación por email
+      if (data.email) {
+        sessionStorage.setItem("finanzas_verificar_email", data.email);
+        router.push(`/verificar?email=${encodeURIComponent(data.email)}`);
+      } else {
+        router.push("/verificar");
+      }
     } catch (err) {
       setError(err.message);
       setCargando(false);

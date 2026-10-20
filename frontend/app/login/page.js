@@ -10,11 +10,13 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [noVerificado, setNoVerificado] = useState(false);
   const [cargando, setCargando] = useState(false);
 
   async function enviar(e) {
     e.preventDefault();
     setError("");
+    setNoVerificado(false);
     setCargando(true);
     try {
       const data = await api("/api/auth/login", {
@@ -25,6 +27,10 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch (err) {
       setError(err.message);
+      // Cuenta creada pero sin verificar el correo todavía
+      if (err.status === 403) {
+        setNoVerificado(true);
+      }
       setCargando(false);
     }
   }
@@ -37,6 +43,15 @@ export default function LoginPage() {
         <p className="sub">Accede a tus finanzas personales</p>
 
         {error && <div className="alerta alerta-error">{error}</div>}
+
+        {noVerificado && (
+          <div className="alerta alerta-aviso">
+            Cuenta sin verificar.{" "}
+            <Link href={`/verificar?email=${encodeURIComponent(email)}`}>
+              Verificar ahora
+            </Link>
+          </div>
+        )}
 
         <form className="formulario" onSubmit={enviar}>
           <div className="campo">
