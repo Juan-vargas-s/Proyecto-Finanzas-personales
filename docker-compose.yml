@@ -39,6 +39,12 @@ services:
       PORT: 3001
       DATABASE_URL_AUTH: ${DATABASE_URL_AUTH}
       JWT_SECRET: ${JWT_SECRET}
+      # SMTP obligatorio para el registro: se envía un código de 6 dígitos
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      EMAIL_FROM: ${EMAIL_FROM}
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,6 +56,10 @@ services:
       start_period: 30s
     networks:
       - backend
+      # SMTP: el envío del código de verificación necesita salir a internet.
+      # La red backend es internal:true (sin internet), así que el servicio
+      # también vive en la red frontend (con salida externa).
+      - frontend
 
   servicio-java:
     build: ./servicio-java
