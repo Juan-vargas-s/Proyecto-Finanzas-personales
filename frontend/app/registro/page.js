@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "../../lib/api";
 import { MONEDAS } from "../../lib/monedas";
+import Selector from "../../components/Selector";
+import { useRecuadro } from "../../components/Modal";
 
 export default function RegistroPage() {
   const router = useRouter();
@@ -15,8 +17,8 @@ export default function RegistroPage() {
     passwordConfirm: "",
     monedaPreferida: "MXN",
   });
-  const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  const { recuadro, fallo } = useRecuadro();
 
   function cambiar(campo) {
     return (e) => setForm({ ...form, [campo]: e.target.value });
@@ -24,11 +26,10 @@ export default function RegistroPage() {
 
   async function enviar(e) {
     e.preventDefault();
-    setError("");
 
     // Validación cliente: la confirmación debe coincidir con la contraseña
     if (form.password !== form.passwordConfirm) {
-      setError("Las contraseñas no coinciden");
+      fallo("Las contraseñas no coinciden", "Verifica que ambas contraseñas sean iguales.");
       return;
     }
 
@@ -46,19 +47,18 @@ export default function RegistroPage() {
         router.push("/verificar");
       }
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudo crear la cuenta", err.message);
       setCargando(false);
     }
   }
 
   return (
     <main className="auth">
+      {recuadro}
       <div className="auth-card">
         <div className="logo">💰</div>
         <h1>Crear cuenta</h1>
         <p className="sub">Regístrate para comenzar a administrar tus finanzas</p>
-
-        {error && <div className="alerta alerta-error">{error}</div>}
 
         <form className="formulario" onSubmit={enviar}>
           <div className="campo">
@@ -110,17 +110,12 @@ export default function RegistroPage() {
           </div>
           <div className="campo">
             <label htmlFor="moneda">Moneda preferida</label>
-            <select
+            <Selector
               id="moneda"
-              value={form.monedaPreferida}
-              onChange={cambiar("monedaPreferida")}
-            >
-              {MONEDAS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              valor={form.monedaPreferida}
+              onChange={(v) => setForm({ ...form, monedaPreferida: v })}
+              opciones={MONEDAS.map((m) => ({ valor: m, etiqueta: m }))}
+            />
           </div>
           <button className="btn btn-ancho" type="submit" disabled={cargando}>
             {cargando ? "Creando cuenta…" : "Registrarme"}

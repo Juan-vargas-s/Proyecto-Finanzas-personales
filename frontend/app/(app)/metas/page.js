@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, usuarioId } from "../../../lib/api";
+import { ModalConfirmacion, useRecuadro } from "../../../components/Modal";
+import { SelectorFecha } from "../../../components/Fechas";
 
 const dinero = (v) =>
   `$${Number(v || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -23,19 +25,18 @@ export default function MetasPage() {
   const [metas, setMetas] = useState([]);
   const [form, setForm] = useState({ nombre: "", montoObjetivo: "", fechaLimite: "" });
   const [aportes, setAportes] = useState({});
-  const [error, setError] = useState("");
-  const [aviso, setAviso] = useState("");
   const [cargando, setCargando] = useState(true);
+  const [porEliminar, setPorEliminar] = useState(null);
+  const { recuadro, exito, fallo, aviso, limpiar } = useRecuadro();
 
   const cargar = useCallback(async () => {
     if (!uid) return;
     setCargando(true);
-    setError("");
     try {
       const datos = await api(`/api/metas?usuarioId=${uid}`);
       setMetas(Array.isArray(datos) ? datos : []);
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudieron cargar las metas", err.message);
     } finally {
       setCargando(false);
     }
@@ -47,8 +48,11 @@ export default function MetasPage() {
 
   async function crear(e) {
     e.preventDefault();
-    setError("");
-    setAviso("");
+    limpiar();
+    if (!form.fechaLimite) {
+      fallo("Falta la fecha límite", "Selecciona la fecha límite de la meta.");
+      return;
+    }
     try {
       await api("/api/metas", {
         method: "POST",
@@ -59,21 +63,20 @@ export default function MetasPage() {
         },
       });
       setForm({ nombre: "", montoObjetivo: "", fechaLimite: "" });
-      setAviso("✓ Meta creada.");
+      exito("Meta creada", "La nueva meta se guardó correctamente.");
       await cargar();
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudo crear la meta", err.message);
     }
   }
 
   async function aportar(id) {
     const monto = parseFloat(aportes[id] || "0");
     if (!monto || monto <= 0) {
-      setError("Ingresa un monto válido para el aporte");
+      fallo("Monto inválido", "Ingresa un monto válido para el aporte.");
       return;
     }
-    setError("");
-    setAviso("");
+    limpiar();
     try {
       const meta = await api(`/api/metas/${id}/aportar`, {
         method: "PUT",
@@ -81,39 +84,47 @@ export default function MetasPage() {
       });
       setAportes({ ...aportes, [id]: "" });
       if (meta && meta.completada) {
-        setAviso(`🏆 ¡Meta cumplida: ${meta.nombre}!`);
+        exito("¡Meta cumplida!", `¡Felicidades, lograste: ${meta.nombre}! 🏆`);
+      } else {
+        exito("Aporte registrado", "El monto se sumó a tu meta de ahorro.");
       }
       await cargar();
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudo registrar el aporte", err.message);
     }
   }
 
-  async function eliminar(id) {
-    if (!window.confirm("¿Eliminar esta meta?")) return;
-    setError("");
+  function eliminar(id) {
+    setPorEliminar(id);
+  }
+
+  async function confirmarEliminar() {
+    const id = porEliminar;
+    setPorEliminar(null);
+    limpiar();
     try {
       await api(`/api/metas/${id}`, { method: "DELETE" });
+      exito("Meta eliminada", "La meta y sus aportes se eliminaron correctamente.");
       await cargar();
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudo eliminar la meta", err.message);
     }
   }
 
   async function verificar() {
-    setError("");
-    setAviso("");
+    limpiar();
     try {
       const r = await api("/api/metas/verificar", { method: "POST" });
       if (r && r.alertasGeneradas > 0) {
-        setAviso(
-          `⚠️ ${r.alertasGeneradas} alerta(s) de presupuesto generadas. Revisa la campana 🔔.`
+        aviso(
+          "Alertas de presupuesto",
+          `${r.alertasGeneradas} alerta(s) de presupuesto generadas. Revisa la campana 🔔.`
         );
       } else {
-        setAviso("✓ Verificación completa: ningún presupuesto superó el 80%.");
+        exito("Verificación completa", "Ningún presupuesto superó el 80%.");
       }
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudo verificar", err.message);
     }
   }
 
@@ -129,8 +140,7 @@ export default function MetasPage() {
         </button>
       </div>
 
-      {error && <div className="alerta alerta-error">{error}</div>}
-      {aviso && <div className="alerta alerta-aviso">{aviso}</div>}
+      {recuadro}
 
       <div className="grid-2">
         <section className="panel">
@@ -166,12 +176,10 @@ export default function MetasPage() {
               </div>
               <div className="campo">
                 <label htmlFor="limite">Fecha límite</label>
-                <input
+                <SelectorFecha
                   id="limite"
-                  type="date"
-                  value={form.fechaLimite}
-                  onChange={(e) => setForm({ ...form, fechaLimite: e.target.value })}
-                  required
+                  valor={form.fechaLimite}
+                  onChange={(v) => setForm({ ...form, fechaLimite: v })}
                 />
               </div>
             </div>
@@ -248,6 +256,15 @@ export default function MetasPage() {
           )}
         </section>
       </div>
+
+      <ModalConfirmacion
+        visible={porEliminar !== null}
+        titulo="Eliminar meta"
+        mensaje="Se eliminarán también los aportes realizados. Esta acción no se puede deshacer. ¿Deseas continuar?"
+        textoConfirmar="Sí, eliminar"
+        onConfirmar={confirmarEliminar}
+        onCancelar={() => setPorEliminar(null)}
+      />
     </>
   );
 }
