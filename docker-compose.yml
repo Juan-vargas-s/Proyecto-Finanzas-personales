@@ -84,8 +84,11 @@ services:
     build: ./servicio-python
     environment:
       JAVA_SERVICE_URL: ${JAVA_SERVICE_URL}
+      REDIS_URL: ${REDIS_URL}
     depends_on:
       servicio-java:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]

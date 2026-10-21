@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, usuarioId } from "../../../lib/api";
+import { formatear } from "../../../lib/dinero";
 import { GraficaPastel, GraficaTendencia } from "../../../components/Graficas";
 import { SelectorMes, mesBonito } from "../../../components/Fechas";
 import { useRecuadro } from "../../../components/Modal";
@@ -11,8 +12,7 @@ function mesActual() {
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const dinero = (v) =>
-  `$${Number(v || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const dinero = (v) => formatear(v);
 
 export default function DashboardPage() {
   const [mes, setMes] = useState(mesActual());

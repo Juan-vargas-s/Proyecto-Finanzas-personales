@@ -61,6 +61,22 @@ public interface TransaccionRepository extends JpaRepository<Transaccion, UUID>,
                                      @Param("inicio") LocalDate inicio,
                                      @Param("fin") LocalDate fin);
 
+    /**
+     * Gasto acumulado agrupado por categoría en un rango. Resuelve de una sola
+     * consulta el gasto de todos los presupuestos del mes, evitando el N+1 de
+     * consultar categoría por categoría.
+     */
+    @Query("""
+            SELECT t.categoria, COALESCE(SUM(t.monto), 0) FROM Transaccion t
+            WHERE t.usuarioId = :usuarioId
+              AND t.tipo = com.finanzas.transacciones.model.TipoTransaccion.GASTO
+              AND t.fecha BETWEEN :inicio AND :fin
+            GROUP BY t.categoria
+            """)
+    List<Object[]> sumGastosPorCategoriaEnRango(@Param("usuarioId") UUID usuarioId,
+                                                 @Param("inicio") LocalDate inicio,
+                                                 @Param("fin") LocalDate fin);
+
     @Query("""
             SELECT COALESCE(SUM(t.monto), 0) FROM Transaccion t
             WHERE t.usuarioId = :usuarioId
@@ -78,6 +94,35 @@ public interface TransaccionRepository extends JpaRepository<Transaccion, UUID>,
               AND t.fecha BETWEEN :inicio AND :fin
             """)
     BigDecimal sumIngresosPorUsuario(@Param("usuarioId") UUID usuarioId,
-                                     @Param("inicio") LocalDate inicio,
-                                     @Param("fin") LocalDate fin);
+                                   @Param("inicio") LocalDate inicio,
+                                   @Param("fin") LocalDate fin);
+
+    /**
+     * Ingresos agrupados por mes en un rango. Una sola consulta cubre toda la
+     * serie de tendencia, en lugar de una consulta por mes.
+     */
+    @Query("""
+            SELECT YEAR(t.fecha), MONTH(t.fecha), COALESCE(SUM(t.monto), 0) FROM Transaccion t
+            WHERE t.usuarioId = :usuarioId
+              AND t.tipo = com.finanzas.transacciones.model.TipoTransaccion.INGRESO
+              AND t.fecha BETWEEN :inicio AND :fin
+            GROUP BY YEAR(t.fecha), MONTH(t.fecha)
+            """)
+    List<Object[]> sumIngresosPorMes(@Param("usuarioId") UUID usuarioId,
+                                    @Param("inicio") LocalDate inicio,
+                                    @Param("fin") LocalDate fin);
+
+    /**
+     * Gastos agrupados por mes en un rango (espejo de sumIngresosPorMes).
+     */
+    @Query("""
+            SELECT YEAR(t.fecha), MONTH(t.fecha), COALESCE(SUM(t.monto), 0) FROM Transaccion t
+            WHERE t.usuarioId = :usuarioId
+              AND t.tipo = com.finanzas.transacciones.model.TipoTransaccion.GASTO
+              AND t.fecha BETWEEN :inicio AND :fin
+            GROUP BY YEAR(t.fecha), MONTH(t.fecha)
+            """)
+    List<Object[]> sumGastosPorMes(@Param("usuarioId") UUID usuarioId,
+                                   @Param("inicio") LocalDate inicio,
+                                   @Param("fin") LocalDate fin);
 }

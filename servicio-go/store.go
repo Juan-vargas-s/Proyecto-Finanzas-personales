@@ -11,6 +11,10 @@ import (
 
 const maxNotifs = 50
 
+// ttlRedis es la vigencia de las claves auxiliares (notificaciones y alertas).
+// Sin TTL estas claves crecerían para siempre en Redis.
+const ttlRedis = 90 * 24 * time.Hour
+
 type RedisStore struct {
 	rdb *redis.Client
 }
@@ -39,7 +43,11 @@ func (s *RedisStore) YaAlertado(ctx context.Context, usuarioID, mes, categoria s
 }
 
 func (s *RedisStore) MarcarAlertado(ctx context.Context, usuarioID, mes, categoria string) {
-	_ = s.rdb.SAdd(ctx, s.claveAlertas(usuarioID, mes), categoria).Err()
+	clave := s.claveAlertas(usuarioID, mes)
+	pipe := s.rdb.Pipeline()
+	pipe.SAdd(ctx, clave, categoria)
+	pipe.Expire(ctx, clave, ttlRedis)
+	_, _ = pipe.Exec(ctx)
 }
 
 func (s *RedisStore) CrearMeta(ctx context.Context, usuarioID string, m Meta) error {
@@ -89,10 +97,12 @@ func (s *RedisStore) EliminarMeta(ctx context.Context, usuarioID, id string) err
 
 func (s *RedisStore) CrearNotificacion(ctx context.Context, usuarioID string, n Notificacion) error {
 	b, _ := json.Marshal(n)
-	_, err := s.rdb.LPush(ctx, s.claveNotifs(usuarioID), b).Result()
-	if err == nil {
-		_ = s.rdb.LTrim(ctx, s.claveNotifs(usuarioID), 0, maxNotifs-1).Err()
-	}
+	clave := s.claveNotifs(usuarioID)
+	pipe := s.rdb.Pipeline()
+	pipe.LPush(ctx, clave, b)
+	pipe.LTrim(ctx, clave, 0, maxNotifs-1)
+	pipe.Expire(ctx, clave, ttlRedis)
+	_, err := pipe.Exec(ctx)
 	return err
 }
 

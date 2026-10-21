@@ -1,5 +1,6 @@
 package com.finanzas.transacciones.controller;
 
+import com.finanzas.transacciones.dto.TendenciaMesResponse;
 import com.finanzas.transacciones.dto.TransaccionRequest;
 import com.finanzas.transacciones.dto.TransaccionResponse;
 import com.finanzas.transacciones.model.TipoTransaccion;
@@ -9,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -58,6 +60,25 @@ public class TransaccionController {
         return service.listar(uid, parseMes(mes), tipo, categoria).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    /**
+     * Serie mensual en una sola llamada: meses=2026-05,2026-06,...
+     * El servicio de Python la usa para la gráfica de tendencia del dashboard
+     * y así evita pedir un resumen por cada mes.
+     */
+    @GetMapping("/tendencia")
+    public List<TendenciaMesResponse> tendencia(
+            HttpServletRequest request,
+            @RequestParam(required = false) UUID usuarioId,
+            @RequestParam String meses) {
+        UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
+        List<YearMonth> lista = Arrays.stream(meses.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(this::parseMesObligatorio)
+                .toList();
+        return service.tendencia(uid, lista);
     }
 
     @GetMapping("/{id}")
@@ -117,5 +138,13 @@ public class TransaccionController {
         } catch (DateTimeParseException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Formato de mes inválido (usa YYYY-MM)");
         }
+    }
+
+    private YearMonth parseMesObligatorio(String mes) {
+        YearMonth valor = parseMes(mes);
+        if (valor == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Formato de mes inválido (usa YYYY-MM)");
+        }
+        return valor;
     }
 }

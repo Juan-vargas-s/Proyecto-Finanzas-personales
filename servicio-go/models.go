@@ -34,6 +34,16 @@ type CrearMetaRequest struct {
 	FechaLimite   string  `json:"fechaLimite" binding:"required,datetime=2006-01-02"`
 }
 
+// PresupuestoEstado es el estado de un presupuesto tal como lo devuelve Java:
+// límite definido, gasto acumulado real, restante y porcentaje usado.
+type PresupuestoEstado struct {
+	Categoria       string  `json:"categoria"`
+	LimiteMensual   float64 `json:"limiteMensual"`
+	GastoAcumulado  float64 `json:"gastoAcumulado"`
+	Restante        float64 `json:"restante"`
+	PorcentajeUsado float64 `json:"porcentajeUsado"`
+}
+
 type AportarRequest struct {
 	Monto float64 `json:"monto" binding:"required,gt=0"`
 }

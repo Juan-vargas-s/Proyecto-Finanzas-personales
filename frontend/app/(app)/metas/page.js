@@ -2,23 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, usuarioId } from "../../../lib/api";
+import { formatear } from "../../../lib/dinero";
 import { ModalConfirmacion, useRecuadro } from "../../../components/Modal";
-import { SelectorFecha } from "../../../components/Fechas";
+import { SelectorFecha, fechaBonita } from "../../../components/Fechas";
 
-const dinero = (v) =>
-  `$${Number(v || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-function fechaBonita(cadena) {
-  try {
-    return new Date(`${cadena}T00:00:00`).toLocaleDateString("es-MX", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return cadena;
-  }
-}
+const dinero = (v) => formatear(v);
 
 export default function MetasPage() {
   const uid = usuarioId();

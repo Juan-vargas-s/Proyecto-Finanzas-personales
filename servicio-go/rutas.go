@@ -1,10 +1,9 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -163,61 +162,37 @@ func verificarPresupuestosHandler(c *gin.Context, store *RedisStore, usuarioID s
 	if mes == "" {
 		mes = time.Now().Format("2006-01")
 	}
-	javasrv := os.Getenv("JAVA_SERVICE_URL")
-	if javasrv == "" {
-		javasrv = "http://servicio-java:8080"
-	}
-	ctx := c.Request.Context()
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
 
-	// presupuestos
-	urlPres := fmt.Sprintf("%s/api/transacciones/presupuestos?usuarioId=%s&mes=%s", javasrv, usuarioID, mes)
-	req, _ := http.NewRequestWithContext(ctx, "GET", urlPres, nil)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "No se pudo contactar a servicio Java"})
+	// Una sola llamada trae el estado (gasto acumulado) de TODOS los presupuestos
+	// del mes: se elimina el N+1 de preguntar categoría por categoría.
+	urlEstado := fmt.Sprintf("%s/api/transacciones/presupuestos/estado?usuarioId=%s&mes=%s", urlJava(), usuarioID, mes)
+	var estados []PresupuestoEstado
+	if err := getJSON(ctx, urlEstado, &estados); err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "Servicio Java devolvió error"})
-		return
-	}
-	var presupuestos []struct {
-		Categoria     string  `json:"categoria"`
-		LimiteMensual float64 `json:"limiteMensual"`
-	}
-	json.NewDecoder(resp.Body).Decode(&presupuestos)
 
 	creadas := 0
-	for _, p := range presupuestos {
-		urlE := fmt.Sprintf("%s/api/transacciones/presupuestos/%s?usuarioId=%s&mes=%s", javasrv, p.Categoria, usuarioID, mes)
-		req2, _ := http.NewRequestWithContext(ctx, "GET", urlE, nil)
-		resp2, err2 := http.DefaultClient.Do(req2)
-		if err2 != nil {
+	for _, est := range estados {
+		if est.LimiteMensual <= 0 || est.PorcentajeUsado < 80 {
 			continue
 		}
-		if resp2.StatusCode != http.StatusOK {
-			resp2.Body.Close()
+		if store.YaAlertado(ctx, usuarioID, mes, est.Categoria) {
 			continue
 		}
-		var est PresupuestoEstado
-		if json.NewDecoder(resp2.Body).Decode(&est) == nil && est.LimiteMensual > 0 {
-			porc := est.GastoAcumulado / est.LimiteMensual * 100
-			if porc >= 80 && !store.YaAlertado(ctx, usuarioID, mes, est.Categoria) {
-				n := Notificacion{
-					ID:       uuid.NewString(),
-					Mensaje:  fmt.Sprintf("Llegaste al %.1f%% de tu presupuesto de %s", porc, est.Categoria),
-					Tipo:     "PRESUPUESTO",
-					Leida:    false,
-					CreadaEn: time.Now().UTC().Format(time.RFC3339),
-				}
-				if store.CrearNotificacion(ctx, usuarioID, n) == nil {
-					store.MarcarAlertado(ctx, usuarioID, mes, est.Categoria)
-					creadas++
-				}
-			}
+		n := Notificacion{
+			ID:       uuid.NewString(),
+			Mensaje:  fmt.Sprintf("Llegaste al %.1f%% de tu presupuesto de %s", est.PorcentajeUsado, est.Categoria),
+			Tipo:     "PRESUPUESTO",
+			Leida:    false,
+			CreadaEn: time.Now().UTC().Format(time.RFC3339),
 		}
-		resp2.Body.Close()
+		if err := store.CrearNotificacion(ctx, usuarioID, n); err == nil {
+			store.MarcarAlertado(ctx, usuarioID, mes, est.Categoria)
+			creadas++
+		}
 	}
 	c.JSON(http.StatusOK, gin.H{"usuarioId": usuarioID, "mes": mes, "alertasGeneradas": creadas})
 }

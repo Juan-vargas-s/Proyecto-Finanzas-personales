@@ -3,6 +3,7 @@ package com.finanzas.transacciones.service;
 import com.finanzas.transacciones.dto.PresupuestoEstadoResponse;
 import com.finanzas.transacciones.dto.PresupuestoRequest;
 import com.finanzas.transacciones.dto.ResumenMesResponse;
+import com.finanzas.transacciones.dto.TendenciaMesResponse;
 import com.finanzas.transacciones.dto.TransaccionRequest;
 import com.finanzas.transacciones.dto.TransaccionResponse;
 import com.finanzas.transacciones.model.Presupuesto;
@@ -14,7 +15,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -102,16 +106,40 @@ public class TransaccionService {
                 .map(p -> {
                     BigDecimal gasto = transaccionRepository.sumGastosPorCategoria(
                             usuarioId, cat, mes.atDay(1), mes.atEndOfMonth());
-                    BigDecimal restante = p.getLimiteMensual().subtract(gasto);
-                    double porcentaje = p.getLimiteMensual().compareTo(BigDecimal.ZERO) > 0
-                            ? gasto.multiply(BigDecimal.valueOf(100))
-                                    .divide(p.getLimiteMensual(), 1, RoundingMode.HALF_UP)
-                                    .doubleValue()
-                            : 0.0;
-                    return new PresupuestoEstadoResponse(
-                            p.getId(), p.getCategoria(), p.getLimiteMensual(),
-                            gasto, restante, porcentaje, p.getMes());
+                    return calcularEstado(p, gasto);
                 });
+    }
+
+    /**
+     * Estado de TODOS los presupuestos del mes en 2 consultas (presupuestos +
+     * gasto agrupado por categoría), en lugar de 2 consultas por presupuesto.
+     */
+    public List<PresupuestoEstadoResponse> estadosPresupuestos(UUID usuarioId, YearMonth mes) {
+        List<Presupuesto> presupuestos = presupuestoRepository
+                .findByUsuarioIdAndMes(usuarioId, mes.toString());
+        if (presupuestos.isEmpty()) {
+            return List.of();
+        }
+        Map<String, BigDecimal> gastoPorCategoria = new HashMap<>();
+        for (Object[] fila : transaccionRepository.sumGastosPorCategoriaEnRango(
+                usuarioId, mes.atDay(1), mes.atEndOfMonth())) {
+            gastoPorCategoria.put((String) fila[0], (BigDecimal) fila[1]);
+        }
+        return presupuestos.stream()
+                .map(p -> calcularEstado(p, gastoPorCategoria.getOrDefault(p.getCategoria(), BigDecimal.ZERO)))
+                .toList();
+    }
+
+    private PresupuestoEstadoResponse calcularEstado(Presupuesto p, BigDecimal gasto) {
+        BigDecimal restante = p.getLimiteMensual().subtract(gasto);
+        double porcentaje = p.getLimiteMensual().compareTo(BigDecimal.ZERO) > 0
+                ? gasto.multiply(BigDecimal.valueOf(100))
+                        .divide(p.getLimiteMensual(), 1, RoundingMode.HALF_UP)
+                        .doubleValue()
+                : 0.0;
+        return new PresupuestoEstadoResponse(
+                p.getId(), p.getCategoria(), p.getLimiteMensual(),
+                gasto, restante, porcentaje, p.getMes());
     }
 
     public List<Presupuesto> listarPresupuestos(UUID usuarioId, YearMonth mes) {
@@ -126,5 +154,39 @@ public class TransaccionService {
         BigDecimal gastos = transaccionRepository.sumGastosPorUsuario(
                 usuarioId, mes.atDay(1), mes.atEndOfMonth());
         return new ResumenMesResponse(ingresos, gastos, ingresos.subtract(gastos), mes.toString());
+    }
+
+    /**
+     * Serie mensual de ingresos/gastos para los meses indicados.
+     * Se resuelve con 2 consultas agregadas (una por tipo) en lugar de una
+     * consulta por mes: el servicio de Python deja de hacer 6 round-trips.
+     */
+    public List<TendenciaMesResponse> tendencia(UUID usuarioId, List<YearMonth> meses) {
+        if (meses.isEmpty()) {
+            return List.of();
+        }
+        YearMonth desde = meses.stream().min(Comparator.naturalOrder()).orElseThrow();
+        YearMonth hasta = meses.stream().max(Comparator.naturalOrder()).orElseThrow();
+
+        Map<YearMonth, BigDecimal> ingresos = agruparPorMes(
+                transaccionRepository.sumIngresosPorMes(usuarioId, desde.atDay(1), hasta.atEndOfMonth()));
+        Map<YearMonth, BigDecimal> gastos = agruparPorMes(
+                transaccionRepository.sumGastosPorMes(usuarioId, desde.atDay(1), hasta.atEndOfMonth()));
+
+        return meses.stream().map(mes -> {
+            BigDecimal ing = ingresos.getOrDefault(mes, BigDecimal.ZERO);
+            BigDecimal gas = gastos.getOrDefault(mes, BigDecimal.ZERO);
+            return new TendenciaMesResponse(mes.toString(), ing, gas, ing.subtract(gas));
+        }).toList();
+    }
+
+    private Map<YearMonth, BigDecimal> agruparPorMes(List<Object[]> filas) {
+        Map<YearMonth, BigDecimal> mapa = new HashMap<>();
+        for (Object[] fila : filas) {
+            int anio = ((Number) fila[0]).intValue();
+            int mes = ((Number) fila[1]).intValue();
+            mapa.put(YearMonth.of(anio, mes), (BigDecimal) fila[2]);
+        }
+        return mapa;
     }
 }

@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { formatear, formatearCorto } from "../lib/dinero";
 
 const COLORES = [
   "#38bdf8",
@@ -34,7 +35,9 @@ const estiloTooltip = {
   color: "#e6edf7",
 };
 
-const dinero = (v) => `$${Number(v).toLocaleString("es-MX", { maximumFractionDigits: 2 })}`;
+// El tooltip y la leyenda usan la moneda preferida del usuario.
+const dinero = (v) => formatear(v);
+const dineroCorto = (v) => formatearCorto(v);
 
 export function GraficaPastel({ categorias }) {
   if (!categorias || categorias.length === 0) {
@@ -108,7 +111,7 @@ export function GraficaTendencia({ meses }) {
         <LineChart data={meses} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
           <XAxis dataKey="mes" stroke="#93a4c0" fontSize={12} />
-          <YAxis stroke="#93a4c0" fontSize={12} />
+          <YAxis stroke="#93a4c0" fontSize={12} tickFormatter={dineroCorto} />
           <Tooltip
             formatter={(v, nombre) => [dinero(v), nombre]}
             contentStyle={estiloTooltip}

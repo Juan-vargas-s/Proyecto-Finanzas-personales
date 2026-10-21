@@ -1,18 +1,45 @@
-import asyncio
 import re
+from contextlib import asynccontextmanager
 from datetime import date
 from uuid import UUID
 
+import httpx
+import redis.asyncio as redis
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from cliente_java import obtener_resumen, obtener_transacciones
+import cache
+from cliente_java import (
+    TIMEOUT,
+    configurar_cliente,
+    obtener_resumen,
+    obtener_tendencia,
+    obtener_transacciones,
+)
 
 load_dotenv()
 
-app = FastAPI(title="Servicio de Reportes", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Cliente HTTP de Java y cliente de Redis compartidos por toda la app."""
+    cliente = httpx.AsyncClient(timeout=TIMEOUT)
+    configurar_cliente(cliente)
+    try:
+        cache.configurar(redis.from_url(cache.REDIS_URL, decode_responses=True))
+    except Exception:
+        # Sin Redis el servicio sigue funcionando, solo que sin caché.
+        cache.configurar(None)
+    try:
+        yield
+    finally:
+        await cliente.aclose()
+        await cache.cerrar()
+
+
+app = FastAPI(title="Servicio de Reportes", version="1.0.0", lifespan=lifespan)
 
 # El frontend (Next.js) consume este servicio a través del API Gateway (Nginx),
 # así que hay que permitir peticiones cross-origin desde el navegador.
@@ -86,20 +113,34 @@ async def health():
 @app.get("/api/reportes/resumen/{usuario_id}", response_model=ResumenMensual)
 async def reporte_resumen(usuario_id: UUID, mes: str):
     _validar_mes(mes)
-    datos = await obtener_resumen(str(usuario_id), mes)
-    return ResumenMensual(
-        usuarioId=str(usuario_id),
+    uid = str(usuario_id)
+
+    en_cache = await cache.obtener(uid, "resumen", mes)
+    if en_cache is not None:
+        return ResumenMensual(**en_cache)
+
+    datos = await obtener_resumen(uid, mes)
+    respuesta = ResumenMensual(
+        usuarioId=uid,
         mes=mes,
         totalIngresos=float(datos["totalIngresos"]),
         totalGastos=float(datos["totalGastos"]),
         balance=float(datos["balance"]),
     )
+    await cache.guardar(uid, "resumen", respuesta.model_dump(), mes)
+    return respuesta
 
 
 @app.get("/api/reportes/categorias/{usuario_id}", response_model=ReporteCategorias)
 async def reporte_categorias(usuario_id: UUID, mes: str):
     _validar_mes(mes)
-    transacciones = await obtener_transacciones(str(usuario_id), mes, tipo="GASTO")
+    uid = str(usuario_id)
+
+    en_cache = await cache.obtener(uid, "categorias", mes)
+    if en_cache is not None:
+        return ReporteCategorias(**en_cache)
+
+    transacciones = await obtener_transacciones(uid, mes, tipo="GASTO")
 
     totales: dict[str, float] = {}
     for t in transacciones:
@@ -115,27 +156,36 @@ async def reporte_categorias(usuario_id: UUID, mes: str):
         )
         for cat, valor in sorted(totales.items(), key=lambda par: par[1], reverse=True)
     ]
-    return ReporteCategorias(
-        usuarioId=str(usuario_id),
+    respuesta = ReporteCategorias(
+        usuarioId=uid,
         mes=mes,
         totalGastos=round(total, 2),
         categorias=categorias,
     )
+    await cache.guardar(uid, "categorias", respuesta.model_dump(), mes)
+    return respuesta
 
 
 @app.get("/api/reportes/tendencia/{usuario_id}", response_model=ReporteTendencia)
 async def reporte_tendencia(usuario_id: UUID):
+    uid = str(usuario_id)
     meses = _ultimos_meses(6)
-    resultados = await asyncio.gather(
-        *(obtener_resumen(str(usuario_id), m) for m in meses)
-    )
+
+    en_cache = await cache.obtener(uid, "tendencia")
+    if en_cache is not None:
+        return ReporteTendencia(**en_cache)
+
+    # Una sola llamada a Java por toda la serie (antes eran 6, una por mes).
+    datos = await obtener_tendencia(uid, meses)
     puntos = [
         PuntoTendencia(
-            mes=mes,
-            totalIngresos=float(datos["totalIngresos"]),
-            totalGastos=float(datos["totalGastos"]),
-            balance=float(datos["balance"]),
+            mes=punto["mes"],
+            totalIngresos=float(punto["totalIngresos"]),
+            totalGastos=float(punto["totalGastos"]),
+            balance=float(punto["balance"]),
         )
-        for mes, datos in zip(meses, resultados)
+        for punto in datos
     ]
-    return ReporteTendencia(usuarioId=str(usuario_id), meses=puntos)
+    respuesta = ReporteTendencia(usuarioId=uid, meses=puntos)
+    await cache.guardar(uid, "tendencia", respuesta.model_dump())
+    return respuesta

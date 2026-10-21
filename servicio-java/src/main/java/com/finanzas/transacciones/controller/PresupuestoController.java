@@ -53,6 +53,19 @@ public class PresupuestoController {
     }
 
     /**
+     * Estado de todos los presupuestos del mes en una sola llamada.
+     * Reemplaza al N+1 de pedir /presupuestos/{categoria} por cada categoría.
+     */
+    @GetMapping("/presupuestos/estado")
+    public List<PresupuestoEstadoResponse> estadosPresupuestos(
+            HttpServletRequest request,
+            @RequestParam(required = false) UUID usuarioId,
+            @RequestParam String mes) {
+        UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
+        return service.estadosPresupuestos(uid, parseMes(mes));
+    }
+
+    /**
      * Estado del presupuesto: límite + gasto acumulado real.
      * Lo consume el servicio de Go (metas) para generar alertas ≥80%.
      */

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../lib/api";
+import { formatear } from "../../../lib/dinero";
 import { ModalConfirmacion, useRecuadro } from "../../../components/Modal";
 import Selector from "../../../components/Selector";
 import { SelectorFecha, SelectorMes, fechaBonita, mesBonito } from "../../../components/Fechas";
@@ -41,8 +42,7 @@ function formVacio() {
   };
 }
 
-const dinero = (v) =>
-  `$${Number(v || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const dinero = (v) => formatear(v);
 
 export default function TransaccionesPage() {
   const [mes, setMes] = useState(mesActual());
@@ -64,24 +64,19 @@ export default function TransaccionesPage() {
   const cargar = useCallback(async (mesSel) => {
     setCargando(true);
     try {
-      const [lista, pres] = await Promise.all([
+      const [lista, pres, estadosRes] = await Promise.all([
         api(`/api/transacciones/?mes=${mesSel}`),
         api(`/api/transacciones/presupuestos?mes=${mesSel}`),
+        api(`/api/transacciones/presupuestos/estado?mes=${mesSel}`).catch(() => []),
       ]);
       setTransacciones(Array.isArray(lista) ? lista : []);
       const listaPres = Array.isArray(pres) ? pres : [];
       setPresupuestos(listaPres);
 
-      const resultados = await Promise.all(
-        listaPres.map((p) =>
-          api(
-            `/api/transacciones/presupuestos/${encodeURIComponent(p.categoria)}?mes=${mesSel}`
-          ).catch(() => null)
-        )
-      );
+      // Una sola llamada trae el estado (gasto acumulado) de todos los presupuestos.
       const mapa = {};
-      listaPres.forEach((p, i) => {
-        if (resultados[i]) mapa[p.categoria] = resultados[i];
+      (Array.isArray(estadosRes) ? estadosRes : []).forEach((e) => {
+        if (e && e.categoria) mapa[e.categoria] = e;
       });
       setEstados(mapa);
     } catch (err) {
