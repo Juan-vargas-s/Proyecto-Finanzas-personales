@@ -4,18 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, setSesion } from "../../lib/api";
+import { useRecuadro } from "../../components/Modal";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [noVerificado, setNoVerificado] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const { recuadro, fallo, limpiar } = useRecuadro();
 
   async function enviar(e) {
     e.preventDefault();
-    setError("");
+    limpiar();
     setNoVerificado(false);
     setCargando(true);
     try {
@@ -26,7 +27,7 @@ export default function LoginPage() {
       setSesion(data.token, data.usuario);
       router.push("/dashboard");
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudo iniciar sesión", err.message);
       // Cuenta creada pero sin verificar el correo todavía
       if (err.status === 403) {
         setNoVerificado(true);
@@ -37,12 +38,12 @@ export default function LoginPage() {
 
   return (
     <main className="auth">
+      {recuadro}
+
       <div className="auth-card">
         <div className="logo">💰</div>
         <h1>Iniciar sesión</h1>
         <p className="sub">Accede a tus finanzas personales</p>
-
-        {error && <div className="alerta alerta-error">{error}</div>}
 
         {noVerificado && (
           <div className="alerta alerta-aviso">

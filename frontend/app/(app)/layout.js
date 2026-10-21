@@ -14,6 +14,7 @@ import {
 } from "../../lib/api";
 import { MONEDAS } from "../../lib/monedas";
 import Notificaciones from "../../components/Notificaciones";
+import Selector from "../../components/Selector";
 
 const PAGINAS = [
   { ruta: "/dashboard", etiqueta: "Dashboard" },
@@ -66,8 +67,7 @@ export default function AppLayout({ children }) {
   }
 
   /** Guarda la moneda preferida del usuario en su perfil. */
-  async function cambiarMoneda(e) {
-    const nueva = e.target.value;
+  async function cambiarMoneda(nueva) {
     setMoneda(nueva);
     setEstadoMoneda("Guardando…");
     try {
@@ -124,17 +124,13 @@ export default function AppLayout({ children }) {
             <div className="menu-usuario">
               <div className="menu-seccion">
                 <span className="menu-titulo">Moneda preferida</span>
-                <select
-                  aria-label="Moneda preferida"
-                  value={moneda}
+                <Selector
+                  id="moneda-preferida"
+                  valor={moneda}
                   onChange={cambiarMoneda}
-                >
-                  {MONEDAS.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Seleccionar moneda"
+                  opciones={MONEDAS.map((m) => ({ valor: m, etiqueta: m }))}
+                />
                 {estadoMoneda && (
                   <span className="menu-aviso">{estadoMoneda}</span>
                 )}

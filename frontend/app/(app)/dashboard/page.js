@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, usuarioId } from "../../../lib/api";
 import { GraficaPastel, GraficaTendencia } from "../../../components/Graficas";
+import { SelectorMes, mesBonito } from "../../../components/Fechas";
+import { useRecuadro } from "../../../components/Modal";
 
 function mesActual() {
   const hoy = new Date();
@@ -17,8 +19,8 @@ export default function DashboardPage() {
   const [resumen, setResumen] = useState(null);
   const [categorias, setCategorias] = useState([]);
   const [tendencia, setTendencia] = useState([]);
-  const [error, setError] = useState("");
   const [cargando, setCargando] = useState(true);
+  const { recuadro, fallo } = useRecuadro();
 
   const uid = usuarioId();
 
@@ -26,7 +28,6 @@ export default function DashboardPage() {
     async (mesSeleccionado) => {
       if (!uid) return;
       setCargando(true);
-      setError("");
       try {
         const [r, c, t] = await Promise.all([
           api(`/api/reportes/resumen/${uid}?mes=${mesSeleccionado}`),
@@ -37,7 +38,7 @@ export default function DashboardPage() {
         setCategorias(c.categorias || []);
         setTendencia(t.meses || []);
       } catch (err) {
-        setError(err.message);
+        fallo("No se pudo cargar el reporte", err.message);
       } finally {
         setCargando(false);
       }
@@ -56,33 +57,46 @@ export default function DashboardPage() {
           <h1>Dashboard</h1>
           <p>Resumen de tu mes, gastos por categoría y tendencia</p>
         </div>
-        <label className="control-mes">
-          Mes
-          <input
-            type="month"
-            value={mes}
-            onChange={(e) => e.target.value && setMes(e.target.value)}
-          />
-        </label>
+        <div className="control-mes">
+          <span>Mes</span>
+          <SelectorMes valor={mes} onChange={setMes} />
+        </div>
       </div>
 
-      {error && <div className="alerta alerta-error">{error}</div>}
+      {recuadro}
 
       <div className="tarjetas">
-        <div className="tarjeta">
-          <div className="etiqueta">Ingresos</div>
+        <div className="tarjeta tarjeta-exito">
+          <div className="cabecera">
+            <span className="etiqueta">Ingresos</span>
+            <span className="icono" aria-hidden="true">
+              💰
+            </span>
+          </div>
           <div className="valor positivo">
             {dinero(resumen ? resumen.totalIngresos : 0)}
           </div>
+          <div className="pie-tarjeta">Entradas registradas en el mes</div>
         </div>
-        <div className="tarjeta">
-          <div className="etiqueta">Gastos</div>
+        <div className="tarjeta tarjeta-error">
+          <div className="cabecera">
+            <span className="etiqueta">Gastos</span>
+            <span className="icono" aria-hidden="true">
+              💸
+            </span>
+          </div>
           <div className="valor negativo">
             {dinero(resumen ? resumen.totalGastos : 0)}
           </div>
+          <div className="pie-tarjeta">Salidas registradas en el mes</div>
         </div>
         <div className="tarjeta">
-          <div className="etiqueta">Balance</div>
+          <div className="cabecera">
+            <span className="etiqueta">Balance</span>
+            <span className="icono" aria-hidden="true">
+              ⚖️
+            </span>
+          </div>
           <div
             className={`valor ${
               resumen && resumen.balance >= 0 ? "positivo" : "negativo"
@@ -90,12 +104,17 @@ export default function DashboardPage() {
           >
             {dinero(resumen ? resumen.balance : 0)}
           </div>
+          <div className="pie-tarjeta">
+            {resumen && resumen.balance >= 0
+              ? "Mes en positivo: sobrante disponible"
+              : "Mes en negativo: revisa tus gastos"}
+          </div>
         </div>
       </div>
 
       <div className="grid-2">
         <section className="panel">
-          <h2>Gastos por categoría ({mes})</h2>
+          <h2>Gastos por categoría · {mesBonito(mes)}</h2>
           {cargando && !resumen ? (
             <p className="vacio">Cargando…</p>
           ) : (

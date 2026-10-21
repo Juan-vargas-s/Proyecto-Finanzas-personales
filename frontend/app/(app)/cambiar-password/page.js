@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, cerrarSesion } from "../../../lib/api";
+import { useRecuadro } from "../../../components/Modal";
 
 export default function CambiarPasswordPage() {
   const router = useRouter();
@@ -11,9 +12,9 @@ export default function CambiarPasswordPage() {
     passwordNueva: "",
     passwordConfirm: "",
   });
-  const [error, setError] = useState("");
   const [exito, setExito] = useState("");
   const [cargando, setCargando] = useState(false);
+  const { recuadro, exito: mostrarExito, fallo } = useRecuadro();
 
   function cambiar(campo) {
     return (e) => setForm({ ...form, [campo]: e.target.value });
@@ -21,17 +22,16 @@ export default function CambiarPasswordPage() {
 
   async function enviar(e) {
     e.preventDefault();
-    setError("");
     setExito("");
 
     // La nueva contraseña y su confirmación deben coincidir
     if (form.passwordNueva !== form.passwordConfirm) {
-      setError("Las nuevas contraseñas no coinciden");
+      fallo("Las contraseñas no coinciden", "La nueva contraseña y su confirmación deben ser iguales.");
       return;
     }
     // La nueva debe ser distinta a la actual
     if (form.passwordActual === form.passwordNueva) {
-      setError("La nueva contraseña debe ser distinta a la actual");
+      fallo("Contraseña repetida", "La nueva contraseña debe ser distinta a la actual.");
       return;
     }
 
@@ -41,7 +41,7 @@ export default function CambiarPasswordPage() {
       setExito("Contraseña actualizada correctamente");
       setForm({ passwordActual: "", passwordNueva: "", passwordConfirm: "" });
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudo cambiar la contraseña", err.message);
     } finally {
       setCargando(false);
     }
@@ -49,6 +49,8 @@ export default function CambiarPasswordPage() {
 
   return (
     <>
+      {recuadro}
+
       <div className="pagina-titulo">
         <div>
           <h1>Cambiar contraseña</h1>
@@ -75,8 +77,6 @@ export default function CambiarPasswordPage() {
         </div>
       ) : (
         <div className="panel centrado">
-          {error && <div className="alerta alerta-error">{error}</div>}
-
           <form className="formulario" onSubmit={enviar}>
             <div className="campo">
               <label htmlFor="passwordActual">Contraseña actual</label>

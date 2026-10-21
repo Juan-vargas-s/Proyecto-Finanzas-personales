@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, setSesion } from "../../lib/api";
+import { useRecuadro } from "../../components/Modal";
 
 export default function VerificarPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [codigo, setCodigo] = useState("");
-  const [error, setError] = useState("");
-  const [aviso, setAviso] = useState("");
   const [cargando, setCargando] = useState(false);
   const [reenviando, setReenviando] = useState(false);
+  const { recuadro, exito, fallo, limpiar } = useRecuadro();
 
   // Pre-cargar el email que dejó la página de registro en la URL / sessionStorage.
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function VerificarPage() {
 
   async function enviar(e) {
     e.preventDefault();
-    setError("");
+    limpiar();
     setCargando(true);
     try {
       const data = await api("/api/auth/verificar-email", {
@@ -35,16 +35,15 @@ export default function VerificarPage() {
       setSesion(data.token, data.usuario);
       router.replace("/dashboard");
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudo verificar", err.message);
       setCargando(false);
     }
   }
 
   async function reenviar() {
-    setError("");
-    setAviso("");
+    limpiar();
     if (!email) {
-      setError("Escribe tu correo para reenviar el código");
+      fallo("Falta el correo", "Escribe tu correo para reenviar el código.");
       return;
     }
     setReenviando(true);
@@ -53,10 +52,10 @@ export default function VerificarPage() {
         method: "POST",
         body: { email },
       });
-      setAviso("Código reenviado. Revisa tu correo (revisa también spam)");
+      exito("Código reenviado", "Revisa tu correo (revisa también spam).");
       setCodigo("");
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudo reenviar", err.message);
     } finally {
       setReenviando(false);
     }
@@ -64,15 +63,13 @@ export default function VerificarPage() {
 
   return (
     <main className="auth">
+      {recuadro}
       <div className="auth-card">
         <div className="logo">✉️</div>
         <h1>Verificar cuenta</h1>
         <p className="sub">
           Ingresa el código de 6 dígitos que te enviamos a tu correo
         </p>
-
-        {error && <div className="alerta alerta-error">{error}</div>}
-        {aviso && <div className="alerta alerta-aviso">{aviso}</div>}
 
         <form className="formulario" onSubmit={enviar}>
           <div className="campo">
