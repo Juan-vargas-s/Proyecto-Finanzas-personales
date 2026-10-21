@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../lib/api";
+import { ModalConfirmacion, useRecuadro } from "../../../components/Modal";
+import Selector from "../../../components/Selector";
+import { SelectorFecha, SelectorMes, fechaBonita, mesBonito } from "../../../components/Fechas";
 
 const CATEGORIAS = [
   "comida",
@@ -54,13 +57,12 @@ export default function TransaccionesPage() {
     limiteMensual: "",
     mes: mesActual(),
   });
-  const [error, setError] = useState("");
-  const [aviso, setAviso] = useState("");
   const [cargando, setCargando] = useState(true);
+  const [porEliminar, setPorEliminar] = useState(null);
+  const { recuadro, exito, fallo, aviso, limpiar } = useRecuadro();
 
   const cargar = useCallback(async (mesSel) => {
     setCargando(true);
-    setError("");
     try {
       const [lista, pres] = await Promise.all([
         api(`/api/transacciones/?mes=${mesSel}`),
@@ -83,7 +85,7 @@ export default function TransaccionesPage() {
       });
       setEstados(mapa);
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudieron cargar los datos", err.message);
     } finally {
       setCargando(false);
     }
@@ -98,25 +100,27 @@ export default function TransaccionesPage() {
   }
 
   function recargarTrasGasto(tipo) {
-    if (tipo === "GASTO") {
-      api("/api/metas/verificar", { method: "POST" })
-        .then((r) => {
-          if (r && r.alertasGeneradas > 0) {
-            setAviso(
-              `⚠️ Se generaron ${r.alertasGeneradas} alerta(s) de presupuesto al 80% o más. Revisa la campana 🔔.`
-            );
-          } else {
-            setAviso("✓ Gasto registrado. Ningún presupuesto superó el 80%.");
-          }
-        })
-        .catch(() => setAviso("✓ Gasto registrado."));
+    if (tipo !== "GASTO") {
+      exito("Ingreso registrado", "El movimiento se guardó correctamente.");
+      return;
     }
+    api("/api/metas/verificar", { method: "POST" })
+      .then((r) => {
+        if (r && r.alertasGeneradas > 0) {
+          aviso(
+            "Alertas de presupuesto",
+            `Se generaron ${r.alertasGeneradas} alerta(s) de presupuesto al 80% o más. Revisa la campana 🔔.`
+          );
+        } else {
+          exito("Gasto registrado", "Ningún presupuesto superó el 80%.");
+        }
+      })
+      .catch(() => exito("Gasto registrado", "El movimiento se guardó correctamente."));
   }
 
   async function enviar(e) {
     e.preventDefault();
-    setError("");
-    setAviso("");
+    limpiar();
     try {
       const cuerpo = {
         tipo: form.tipo,
@@ -130,17 +134,20 @@ export default function TransaccionesPage() {
       await api(url, { method: metodo, body: cuerpo });
       setForm(formVacio());
       setEditando(null);
-      if (!editando) recargarTrasGasto(cuerpo.tipo);
+      if (!editando) {
+        recargarTrasGasto(cuerpo.tipo);
+      } else {
+        exito("Transacción actualizada", "Los cambios se guardaron correctamente.");
+      }
       await cargar(mes);
     } catch (err) {
-      setError(err.message);
+      fallo(editando ? "No se pudo editar" : "No se pudo registrar", err.message);
     }
   }
 
   function editar(t) {
     setEditando(t.id);
-    setAviso("");
-    setError("");
+    limpiar();
     setForm({
       tipo: t.tipo,
       monto: String(t.monto),
@@ -154,24 +161,29 @@ export default function TransaccionesPage() {
   function cancelar() {
     setEditando(null);
     setForm(formVacio());
-    setError("");
+    limpiar();
   }
 
   async function eliminar(id) {
-    if (!window.confirm("¿Eliminar esta transacción?")) return;
-    setError("");
+    setPorEliminar(id);
+  }
+
+  async function confirmarEliminar() {
+    const id = porEliminar;
+    setPorEliminar(null);
+    limpiar();
     try {
       await api(`/api/transacciones/${id}`, { method: "DELETE" });
+      exito("Movimiento eliminado", "El registro se eliminó correctamente.");
       await cargar(mes);
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudo eliminar", err.message);
     }
   }
 
   async function guardarPresupuesto(e) {
     e.preventDefault();
-    setError("");
-    setAviso("");
+    limpiar();
     try {
       await api("/api/transacciones/presupuestos", {
         method: "POST",
@@ -183,9 +195,9 @@ export default function TransaccionesPage() {
       });
       setFormPres({ categoria: "", limiteMensual: "", mes: mes });
       await cargar(mes);
-      setAviso("✓ Presupuesto guardado.");
+      exito("Presupuesto guardado", "El límite mensual de la categoría se guardó.");
     } catch (err) {
-      setError(err.message);
+      fallo("No se pudo guardar el presupuesto", err.message);
     }
   }
 
@@ -198,30 +210,30 @@ export default function TransaccionesPage() {
           <h1>Transacciones</h1>
           <p>Ingresos, gastos y presupuestos mensuales por categoría</p>
         </div>
-        <label className="control-mes">
-          Mes
-          <input
-            type="month"
-            value={mes}
-            onChange={(e) => e.target.value && setMes(e.target.value)}
-          />
-        </label>
+        <div className="control-mes">
+          <span>Mes</span>
+          <SelectorMes valor={mes} onChange={setMes} />
+        </div>
       </div>
 
-      {error && <div className="alerta alerta-error">{error}</div>}
-      {aviso && <div className="alerta alerta-aviso">{aviso}</div>}
+      {recuadro}
 
       <section className="panel">
         <div className="pagina-titulo" style={{ marginBottom: "0.75rem" }}>
-          <h2 style={{ margin: 0 }}>Movimientos de {mes}</h2>
-          <label className="control-mes">
-            Filtrar
-            <select value={filtro} onChange={(e) => setFiltro(e.target.value)}>
-              <option value="">Todos</option>
-              <option value="INGRESO">Ingresos</option>
-              <option value="GASTO">Gastos</option>
-            </select>
-          </label>
+          <h2 style={{ margin: 0 }}>Movimientos de {mesBonito(mes)}</h2>
+          <div className="control-mes">
+            <span>Filtrar</span>
+            <Selector
+              className="selector-estrecho"
+              valor={filtro}
+              onChange={setFiltro}
+              opciones={[
+                { valor: "", etiqueta: "Todos" },
+                { valor: "INGRESO", etiqueta: "Ingresos" },
+                { valor: "GASTO", etiqueta: "Gastos" },
+              ]}
+            />
+          </div>
         </div>
 
         {cargando ? (
@@ -244,7 +256,7 @@ export default function TransaccionesPage() {
               <tbody>
                 {visibles.map((t) => (
                   <tr key={t.id}>
-                    <td>{t.fecha}</td>
+                    <td>{fechaBonita(t.fecha)}</td>
                     <td>
                       <span
                         className={`badge ${
@@ -294,10 +306,15 @@ export default function TransaccionesPage() {
             <div className="fila">
               <div className="campo">
                 <label htmlFor="tipo">Tipo</label>
-                <select id="tipo" value={form.tipo} onChange={cambiar("tipo")}>
-                  <option value="GASTO">Gasto</option>
-                  <option value="INGRESO">Ingreso</option>
-                </select>
+                <Selector
+                  id="tipo"
+                  valor={form.tipo}
+                  onChange={(v) => setForm({ ...form, tipo: v })}
+                  opciones={[
+                    { valor: "GASTO", etiqueta: "Gasto" },
+                    { valor: "INGRESO", etiqueta: "Ingreso" },
+                  ]}
+                />
               </div>
               <div className="campo">
                 <label htmlFor="monto">Monto</label>
@@ -332,13 +349,11 @@ export default function TransaccionesPage() {
               </div>
               <div className="campo">
                 <label htmlFor="fecha">Fecha</label>
-                <input
+                <SelectorFecha
                   id="fecha"
-                  type="date"
+                  valor={form.fecha}
+                  onChange={(v) => setForm({ ...form, fecha: v })}
                   max={hoyISO()}
-                  value={form.fecha}
-                  onChange={cambiar("fecha")}
-                  required
                 />
               </div>
             </div>
@@ -370,7 +385,7 @@ export default function TransaccionesPage() {
         </section>
 
         <section className="panel">
-          <h2>Presupuestos de {mes}</h2>
+          <h2>Presupuestos de {mesBonito(mes)}</h2>
           <form className="formulario" onSubmit={guardarPresupuesto}>
             <div className="fila">
               <div className="campo">
@@ -403,13 +418,11 @@ export default function TransaccionesPage() {
               </div>
             </div>
             <div className="campo">
-              <label htmlFor="mes-pres">Mes (YYYY-MM)</label>
-              <input
+              <label htmlFor="mes-pres">Mes</label>
+              <SelectorMes
                 id="mes-pres"
-                type="month"
-                value={formPres.mes}
-                onChange={(e) => setFormPres({ ...formPres, mes: e.target.value })}
-                required
+                valor={formPres.mes}
+                onChange={(v) => setFormPres({ ...formPres, mes: v })}
               />
             </div>
             <button className="btn" type="submit">
@@ -448,6 +461,15 @@ export default function TransaccionesPage() {
           </div>
         </section>
       </div>
+
+      <ModalConfirmacion
+        visible={porEliminar !== null}
+        titulo="Eliminar transacción"
+        mensaje="Esta acción no se puede deshacer. ¿Deseas eliminar el movimiento seleccionado?"
+        textoConfirmar="Sí, eliminar"
+        onConfirmar={confirmarEliminar}
+        onCancelar={() => setPorEliminar(null)}
+      />
     </>
   );
 }
