@@ -3,6 +3,63 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, gateway, getToken } from "../lib/api";
 
+function IconoCampana() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  );
+}
+
+function IconoAlerta({ tipo }) {
+  if (tipo === "META") {
+    return (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
 export default function Notificaciones({ usuarioId }) {
   const [lista, setLista] = useState([]);
   const [abierta, setAbierta] = useState(false);
@@ -112,7 +169,7 @@ export default function Notificaciones({ usuarioId }) {
       {nueva && (
         <div className="aviso-flotante" role="status" ref={avisoRef}>
           <span className="aviso-icono" aria-hidden="true">
-            {nueva.tipo === "META" ? "🏆" : "⚠️"}
+            <IconoAlerta tipo={nueva.tipo} />
           </span>
           <span className="aviso-texto">{nueva.mensaje}</span>
           <button
@@ -121,7 +178,7 @@ export default function Notificaciones({ usuarioId }) {
             onClick={() => setNueva(null)}
             aria-label="Cerrar aviso"
           >
-            ✕
+            ×
           </button>
         </div>
       )}
@@ -136,7 +193,7 @@ export default function Notificaciones({ usuarioId }) {
         aria-expanded={abierta}
         onClick={() => setAbierta((a) => !a)}
       >
-        <span aria-hidden="true">🔔</span>
+        <IconoCampana />
         {noLeidas.length > 0 && (
           <span className="contador" aria-hidden="true">
             {noLeidas.length}
@@ -162,17 +219,14 @@ export default function Notificaciones({ usuarioId }) {
             </h3>
             <div className="notif-lista">
               {lista.length === 0 && (
-                <div className="vacio">No tienes notificaciones 🎉</div>
+                <div className="vacio">No tienes notificaciones</div>
               )}
               {lista.map((n) => (
                 <div
                   key={n.id}
                   className={`notif-item ${n.leida ? "" : "no-leida"}`}
                 >
-                  <span className="mensaje">
-                    {n.tipo === "META" ? "🏆 " : "⚠️ "}
-                    {n.mensaje}
-                  </span>
+                  <span className="mensaje">{n.mensaje}</span>
                   <span className="meta-notif">
                     <span>{fecha(n.creadaEn)}</span>
                     {!n.leida && (

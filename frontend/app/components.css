@@ -163,7 +163,21 @@
 }
 
 .campo input,
-.campo select,
+.campo select {
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  color: var(--texto);
+  padding: 0 0.75rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  line-height: 1.25;
+  height: var(--control-alto);
+  min-height: var(--control-alto);
+  box-sizing: border-box;
+  width: 100%;
+}
+
 .campo textarea {
   background: var(--panel-2);
   border: 1px solid var(--borde);
@@ -174,6 +188,7 @@
   font-family: inherit;
   line-height: 1.25;
   min-height: var(--control-alto);
+  box-sizing: border-box;
   width: 100%;
 }
 
@@ -495,6 +510,7 @@
   justify-content: space-between;
   gap: 0.6rem;
   width: 100%;
+  height: var(--control-alto);
   min-height: var(--control-alto);
   background: var(--panel-2);
   border: 1px solid var(--borde);
@@ -506,6 +522,7 @@
   line-height: 1.25;
   text-align: left;
   cursor: pointer;
+  box-sizing: border-box;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
