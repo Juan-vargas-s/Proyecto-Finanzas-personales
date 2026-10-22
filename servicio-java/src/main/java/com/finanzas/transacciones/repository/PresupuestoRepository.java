@@ -10,6 +10,8 @@ public interface PresupuestoRepository extends JpaRepository<Presupuesto, UUID> 
 
     Optional<Presupuesto> findByUsuarioIdAndCategoriaAndMes(UUID usuarioId, String categoria, String mes);
 
+    Optional<Presupuesto> findByIdAndUsuarioId(UUID id, UUID usuarioId);
+
     List<Presupuesto> findByUsuarioIdAndMes(UUID usuarioId, String mes);
 
     void deleteByIdAndUsuarioId(UUID id, UUID usuarioId);

@@ -7,7 +7,9 @@ import { useClicFuera } from "../lib/hooks";
  * Lista desplegable con el diseño del frontend (reemplaza al <select>
  * nativo cuyo menú pertenece al sistema operativo).
  *
- * opciones: [{ valor, etiqueta }]
+ * opciones: [{ valor, etiqueta, icono, color }]
+ *  - icono: emoji que se pinta antes de la etiqueta.
+ *  - color: color del icono (el de la categoría).
  */
 export default function Selector({
   valor,
@@ -34,7 +36,18 @@ export default function Selector({
         aria-expanded={abierto}
         onClick={() => setAbierto((v) => !v)}
       >
-        <span className="selector-texto">{actual ? actual.etiqueta : placeholder}</span>
+        <span className="selector-texto">
+          {actual?.icono && (
+            <span
+              className="selector-icono"
+              style={actual.color ? { color: actual.color } : undefined}
+              aria-hidden="true"
+            >
+              {actual.icono}
+            </span>
+          )}
+          <span>{actual ? actual.etiqueta : placeholder}</span>
+        </span>
         <span className="selector-flecha" aria-hidden="true">
           ▾
         </span>
@@ -56,7 +69,18 @@ export default function Selector({
                   cerrar();
                 }}
               >
-                <span>{o.etiqueta}</span>
+                <span>
+                  {o.icono && (
+                    <span
+                      className="selector-icono"
+                      style={o.color ? { color: o.color } : undefined}
+                      aria-hidden="true"
+                    >
+                      {o.icono}
+                    </span>
+                  )}
+                  {o.etiqueta}
+                </span>
                 {String(o.valor) === String(valor) && (
                   <span aria-hidden="true">✓</span>
                 )}

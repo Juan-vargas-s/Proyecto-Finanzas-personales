@@ -14,9 +14,11 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -79,6 +81,29 @@ public class PresupuestoController {
         return service.estadoPresupuesto(uid, categoria, parseMes(mes))
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "No existe presupuesto para esa categoría y mes"));
+    }
+
+    /** Edita un presupuesto: cambia el límite, la categoría o el mes. */
+    @PutMapping("/presupuestos/{id}")
+    public PresupuestoResponse actualizarPresupuesto(
+            HttpServletRequest request,
+            @PathVariable UUID id,
+            @Valid @RequestBody PresupuestoRequest req) {
+        return service.actualizarPresupuesto(usuarioIdRequerido(request), id, req)
+                .map(this::toResponse)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Presupuesto no encontrado"));
+    }
+
+    /** Elimina un presupuesto del mes. */
+    @DeleteMapping("/presupuestos/{id}")
+    public ResponseEntity<Void> eliminarPresupuesto(
+            HttpServletRequest request,
+            @PathVariable UUID id) {
+        if (!service.eliminarPresupuesto(usuarioIdRequerido(request), id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Presupuesto no encontrado");
+        }
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/resumen")

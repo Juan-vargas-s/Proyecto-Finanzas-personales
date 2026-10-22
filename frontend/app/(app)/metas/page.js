@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, usuarioId } from "../../../lib/api";
 import { formatear, useMoneda } from "../../../lib/dinero";
+import { aOpciones, useCategorias } from "../../../lib/categorias";
 import { Modal, ModalConfirmacion, useRecuadro } from "../../../components/Modal";
 import { SelectorFecha, fechaBonita } from "../../../components/Fechas";
+import Selector from "../../../components/Selector";
 import FlujoDinero from "../../../components/FlujoDinero";
 import TarjetaMeta from "../../../components/TarjetaMeta";
 
@@ -13,11 +15,18 @@ function mesActual() {
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const FORM_VACIO = { id: null, nombre: "", montoObjetivo: "", fechaLimite: "" };
+const FORM_VACIO = {
+  id: null,
+  nombre: "",
+  montoObjetivo: "",
+  fechaLimite: "",
+  categoria: "",
+};
 
 export default function MetasPage() {
   const uid = usuarioId();
   const moneda = useMoneda();
+  const { categorias } = useCategorias();
   const [mes, setMes] = useState(mesActual());
   const [metas, setMetas] = useState([]);
   const [resumen, setResumen] = useState(null);
@@ -28,7 +37,7 @@ export default function MetasPage() {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [porEliminar, setPorEliminar] = useState(null);
-  const { recuadro, exito, fallo, aviso, limpiar } = useRecuadro();
+  const { recuadro, exito, fallo, limpiar } = useRecuadro();
 
   const cargar = useCallback(async () => {
     if (!uid) return;
@@ -66,6 +75,7 @@ export default function MetasPage() {
       nombre: meta.nombre || "",
       montoObjetivo: String(meta.montoObjetivo ?? ""),
       fechaLimite: meta.fechaLimite || "",
+      categoria: meta.categoria || "",
     });
     setModalAbierto(true);
   }
@@ -92,6 +102,7 @@ export default function MetasPage() {
         nombre: form.nombre.trim(),
         montoObjetivo: monto,
         fechaLimite: form.fechaLimite,
+        categoria: form.categoria || "",
       };
       if (form.id) {
         await api(`/api/metas/${form.id}`, { method: "PUT", body: cuerpo });
@@ -172,23 +183,6 @@ export default function MetasPage() {
     }
   }
 
-  async function verificar() {
-    limpiar();
-    try {
-      const r = await api("/api/metas/verificar", { method: "POST" });
-      if (r && r.alertasGeneradas > 0) {
-        aviso(
-          "Alertas de presupuesto",
-          `${r.alertasGeneradas} alerta(s) de presupuesto generadas. Revisa la campana 🔔.`
-        );
-      } else {
-        exito("Verificación completa", "Ningún presupuesto superó el 80%.");
-      }
-    } catch (err) {
-      fallo("No se pudo verificar", err.message);
-    }
-  }
-
   const totalAhorrado = Number(resumen?.totalAhorrado) || 0;
   const objetivoTotal = Number(resumen?.objetivoTotal) || 0;
   const enRiesgo = Number(resumen?.enRiesgo) || 0;
@@ -204,9 +198,6 @@ export default function MetasPage() {
           <p>Define metas, aporta y sigue tu ritmo para llegar a tiempo</p>
         </div>
         <div className="fila">
-          <button className="btn btn-secundario" onClick={verificar}>
-            🔎 Verificar presupuestos
-          </button>
           <button className="btn" onClick={abrirCrear}>
             ➕ Nueva meta
           </button>
@@ -376,6 +367,16 @@ export default function MetasPage() {
                 onChange={(v) => setForm({ ...form, fechaLimite: v })}
               />
             </div>
+          </div>
+          <div className="campo">
+            <label htmlFor="categoria-meta">Categoría (opcional)</label>
+            <Selector
+              id="categoria-meta"
+              valor={form.categoria}
+              onChange={(v) => setForm({ ...form, categoria: v })}
+              opciones={aOpciones(categorias)}
+              placeholder="Sin categoría"
+            />
           </div>
           <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
         </form>

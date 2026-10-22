@@ -1890,3 +1890,255 @@ h3 {
     padding: 1.25rem 1rem 2.5rem;
   }
 }
+
+/* ============================================================
+   FASE 3 — Tabs, presupuestos de primera clase y categorías
+   ============================================================ */
+
+/* ---------- Tabs ---------- */
+.tabs {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  margin-bottom: 1rem;
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tab {
+  border: none;
+  background: transparent;
+  color: var(--texto-2);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.5rem 1.15rem;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--texto);
+}
+
+.tab.activa {
+  background: linear-gradient(135deg, var(--acento), var(--acento-2));
+  color: #08111f;
+}
+
+/* ---------- Categorías con icono ---------- */
+.cat-celda {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.cat-icono {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.selector-icono {
+  margin-right: 0.4rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.etiqueta-suave {
+  color: var(--texto-2);
+  font-size: 0.85rem;
+}
+
+/* ---------- Tira de KPIs de presupuestos ---------- */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.kpi-item {
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.kpi-etiqueta {
+  color: var(--texto-2);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kpi-valor {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.kpi-valor.alerta-valor {
+  color: var(--alerta);
+}
+
+/* ---------- Tarjetas de presupuesto ---------- */
+.presupuestos-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 0.9rem;
+}
+
+.presupuesto-card {
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-left: 3px solid var(--acento);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.presupuesto-card.alerta {
+  border-left-color: var(--alerta);
+}
+
+.presupuesto-card.excedido {
+  border-left-color: var(--error);
+}
+
+.presupuesto-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.presupuesto-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+  color: var(--texto);
+}
+
+.presupuesto-pct {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--texto-2);
+}
+
+.presupuesto-pct.alerta {
+  color: var(--alerta);
+}
+
+.presupuesto-pct.excedido {
+  color: var(--error);
+}
+
+/* Barra con 3 zonas y marca del 80% */
+.barra-pista {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: visible;
+}
+
+.barra-pista i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--acento), var(--acento-2));
+  transition: width 0.3s ease;
+}
+
+.barra-pista.alerta i {
+  background: linear-gradient(90deg, var(--alerta), #fb923c);
+}
+
+.barra-pista.excedido i {
+  background: linear-gradient(90deg, var(--error), #f472b6);
+}
+
+.marca-80 {
+  position: absolute;
+  top: -3px;
+  left: 80%;
+  width: 2px;
+  height: 16px;
+  background: var(--texto-2);
+  opacity: 0.75;
+  border-radius: 2px;
+}
+
+.presupuesto-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--texto-2);
+  flex-wrap: wrap;
+}
+
+.restante-ok {
+  color: var(--exito);
+  font-weight: 600;
+}
+
+/* ---------- Aviso flotante (SSE) ---------- */
+.aviso-flotante {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: 380px;
+  padding: 0.75rem 0.9rem;
+  background: var(--panel-2);
+  border: 1px solid var(--acento);
+  border-radius: 12px;
+  box-shadow: var(--sombra);
+  animation: aviso-entra 0.25s ease;
+}
+
+.aviso-icono {
+  font-size: 1.15rem;
+}
+
+.aviso-texto {
+  color: var(--texto);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+@keyframes aviso-entra {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .aviso-flotante {
+    left: 1rem;
+    right: 1rem;
+    max-width: none;
+  }
+}

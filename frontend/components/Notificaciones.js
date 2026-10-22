@@ -1,12 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api, gateway, getToken } from "../lib/api";
 
 export default function Notificaciones({ usuarioId }) {
   const [lista, setLista] = useState([]);
   const [abierta, setAbierta] = useState(false);
   const [tick, setTick] = useState(0);
+  const [nueva, setNueva] = useState(null);
+  const [enVivo, setEnVivo] = useState(false);
+  const avisoRef = useRef(null);
 
   const cargar = useCallback(async () => {
     if (!usuarioId) return;
@@ -20,13 +23,57 @@ export default function Notificaciones({ usuarioId }) {
 
   useEffect(() => {
     cargar();
-    const intervalo = setInterval(cargar, 30000);
+    const intervalo = setInterval(cargar, 60000);
     return () => clearInterval(intervalo);
   }, [cargar]);
 
   useEffect(() => {
     if (tick > 0) cargar();
   }, [tick, cargar]);
+
+  /**
+   * Alertas en vivo: el servicio de metas empuja las notificaciones por SSE
+   * (Server-Sent Events) en cuanto se generan, sin que el navegador tenga
+   * que preguntar cada X segundos. Si la conexión no se puede abrir, el
+   * polling anterior sigue funcionando como respaldo.
+   */
+  useEffect(() => {
+    const token = getToken();
+    if (!token || !usuarioId) return undefined;
+
+    let fuente = null;
+    try {
+      fuente = new EventSource(
+        `${gateway()}/api/metas/stream?token=${encodeURIComponent(token)}`
+      );
+    } catch {
+      return undefined;
+    }
+
+    fuente.addEventListener("conectado", () => setEnVivo(true));
+    fuente.addEventListener("notificacion", (evento) => {
+      try {
+        const n = JSON.parse(evento.data);
+        setNueva(n);
+        cargar();
+      } catch {
+        // evento con formato inesperado: se ignora
+      }
+    });
+    fuente.onerror = () => setEnVivo(false);
+
+    return () => {
+      setEnVivo(false);
+      if (fuente) fuente.close();
+    };
+  }, [usuarioId, cargar]);
+
+  // El aviso flotante se oculta solo a los pocos segundos.
+  useEffect(() => {
+    if (!nueva) return undefined;
+    const t = setTimeout(() => setNueva(null), 6000);
+    return () => clearTimeout(t);
+  }, [nueva]);
 
   const noLeidas = lista.filter((n) => !n.leida);
 
@@ -62,10 +109,26 @@ export default function Notificaciones({ usuarioId }) {
 
   return (
     <>
+      {nueva && (
+        <div className="aviso-flotante" role="status" ref={avisoRef}>
+          <span className="aviso-icono">
+            {nueva.tipo === "META" ? "🏆" : "⚠️"}
+          </span>
+          <span className="aviso-texto">{nueva.mensaje}</span>
+          <button
+            type="button"
+            className="btn btn-secundario btn-mini"
+            onClick={() => setNueva(null)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <button
         type="button"
         className="campana"
-        title="Notificaciones"
+        title={enVivo ? "Notificaciones (en vivo)" : "Notificaciones"}
         onClick={() => setAbierta((a) => !a)}
       >
         🔔

@@ -24,6 +24,17 @@ func main() {
 	rdb := redis.NewClient(opts)
 	store := NewRedisStore(rdb)
 	eventos := NewPublicadorEventos(rdb)
+	hub := NuevoHubSSE()
+
+	// El consumidor automático reevalúa los presupuestos cuando Java publica
+	// un movimiento o un cambio de presupuesto, y empuja la alerta al
+	// navegador por SSE (sin que el usuario pulse "Verificar presupuestos").
+	//
+	// Usa un cliente Redis DEDICADO: XReadGroup bloquea el socket durante
+	// segundos y, si compartiera el pool con el path HTTP, lo agotaría.
+	rdbConsumo := redis.NewClient(opts)
+	consumidor := NewConsumidorEventos(rdbConsumo, store, eventos, hub)
+	consumidor.Iniciar(context.Background())
 
 	// El grupo de consumidores de Java se crea desde el productor: así el
 	// consumidor puede arrancar en cualquier momento y leer los eventos
@@ -76,7 +87,7 @@ func main() {
 		})
 	})
 
-	registrarRutas(r, store, eventos)
+	registrarRutas(r, store, eventos, hub)
 
 	port := os.Getenv("PORT")
 	if port == "" {

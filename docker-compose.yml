@@ -113,9 +113,11 @@ services:
       REDIS_URL: ${REDIS_URL}
       JAVA_SERVICE_URL: ${JAVA_SERVICE_URL}
       JWT_SECRET: ${JWT_SECRET}
-      # Redis Streams: Go publica aquí los aportes a meta.
+      # Redis Streams: Go publica aquí los aportes a meta y consume los
+      # eventos de transacciones/presupuestos que publica Java.
       REDIS_EVENTOS_STREAM: ${REDIS_EVENTOS_STREAM:-eventos:finanzas}
       EVENTOS_GROUP_JAVA: ${EVENTOS_GROUP_JAVA:-java}
+      EVENTOS_GROUP_GO: ${EVENTOS_GROUP_GO:-go}
       PORT: 3002
     depends_on:
       redis:

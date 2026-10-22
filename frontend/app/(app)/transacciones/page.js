@@ -3,24 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, usuarioId } from "../../../lib/api";
 import { formatear, useMoneda } from "../../../lib/dinero";
+import { aOpciones, estiloCategoria, useCategorias } from "../../../lib/categorias";
 import { ModalConfirmacion, useRecuadro } from "../../../components/Modal";
 import Selector from "../../../components/Selector";
 import AsignarMetaModal from "../../../components/AsignarMetaModal";
 import { SelectorFecha, SelectorMes, fechaBonita, mesBonito } from "../../../components/Fechas";
-
-const CATEGORIAS = [
-  "comida",
-  "transporte",
-  "entretenimiento",
-  "vivienda",
-  "servicios",
-  "salud",
-  "educacion",
-  "ropa",
-  "salario",
-  "freelance",
-  "otros",
-];
 
 function hoyISO() {
   const d = new Date();
@@ -46,6 +33,8 @@ function formVacio() {
 export default function TransaccionesPage() {
   const uid = usuarioId();
   const moneda = useMoneda();
+  const { categorias, todas } = useCategorias();
+  const [pestana, setPestana] = useState("movimientos");
   const [mes, setMes] = useState(mesActual());
   const [transacciones, setTransacciones] = useState([]);
   const [presupuestos, setPresupuestos] = useState([]);
@@ -58,13 +47,20 @@ export default function TransaccionesPage() {
     limiteMensual: "",
     mes: mesActual(),
   });
+  const [editandoPresupuesto, setEditandoPresupuesto] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [porEliminar, setPorEliminar] = useState(null);
+  const [porEliminarPresupuesto, setPorEliminarPresupuesto] = useState(null);
   const [asignando, setAsignando] = useState(false);
   const [metas, setMetas] = useState([]);
   const [montoIngreso, setMontoIngreso] = useState(0);
   const [guardandoAsignacion, setGuardandoAsignacion] = useState(false);
   const { recuadro, exito, fallo, aviso, limpiar } = useRecuadro();
+
+  const opcionesGasto = aOpciones(categorias.filter((c) => c.tipo === "GASTO"));
+  const opcionesIngreso = aOpciones(categorias.filter((c) => c.tipo === "INGRESO"));
+  const opcionesCategoria = (tipo) =>
+    tipo === "INGRESO" ? opcionesIngreso : opcionesGasto;
 
   const cargar = useCallback(async (mesSel) => {
     setCargando(true);
@@ -100,22 +96,13 @@ export default function TransaccionesPage() {
   }
 
   function recargarTrasGasto(tipo) {
+    // La verificación de presupuestos es automática: Java publica el evento,
+    // Go reevalúa y la alerta llega sola por SSE. Aquí solo se avisa.
     if (tipo !== "GASTO") {
       exito("Ingreso registrado", "El movimiento se guardó correctamente.");
       return;
     }
-    api("/api/metas/verificar", { method: "POST" })
-      .then((r) => {
-        if (r && r.alertasGeneradas > 0) {
-          aviso(
-            "Alertas de presupuesto",
-            `Se generaron ${r.alertasGeneradas} alerta(s) de presupuesto al 80% o más. Revisa la campana 🔔.`
-          );
-        } else {
-          exito("Gasto registrado", "Ningún presupuesto superó el 80%.");
-        }
-      })
-      .catch(() => exito("Gasto registrado", "El movimiento se guardó correctamente."));
+    exito("Gasto registrado", "El movimiento se guardó correctamente.");
   }
 
   async function enviar(e) {
@@ -244,21 +231,94 @@ export default function TransaccionesPage() {
   async function guardarPresupuesto(e) {
     e.preventDefault();
     limpiar();
-    try {
-      await api("/api/transacciones/presupuestos", {
-        method: "POST",
-        body: {
-          categoria: formPres.categoria.trim(),
-          limiteMensual: parseFloat(formPres.limiteMensual),
-          mes: formPres.mes,
-        },
-      });
-      setFormPres({ categoria: "", limiteMensual: "", mes: mes });
-      await cargar(mes);
-      exito("Presupuesto guardado", "El límite mensual de la categoría se guardó.");
-    } catch (err) {
-      fallo("No se pudo guardar el presupuesto", err.message);
+    if (!formPres.categoria) {
+      fallo("Falta la categoría", "Elige la categoría del presupuesto.");
+      return;
     }
+    const limite = parseFloat(formPres.limiteMensual);
+    if (!limite || limite <= 0) {
+      fallo("Límite inválido", "El límite mensual debe ser mayor a cero.");
+      return;
+    }
+    try {
+      const cuerpo = {
+        categoria: formPres.categoria,
+        limiteMensual: limite,
+        mes: formPres.mes,
+      };
+      if (editandoPresupuesto) {
+        await api(`/api/transacciones/presupuestos/${editandoPresupuesto}`, {
+          method: "PUT",
+          body: cuerpo,
+        });
+        exito("Presupuesto actualizado", "El límite mensual se guardó.");
+      } else {
+        await api("/api/transacciones/presupuestos", { method: "POST", body: cuerpo });
+        exito("Presupuesto guardado", "El límite mensual de la categoría se guardó.");
+      }
+      setFormPres({ categoria: "", limiteMensual: "", mes: mes });
+      setEditandoPresupuesto(null);
+      await cargar(mes);
+    } catch (err) {
+      fallo(
+        editandoPresupuesto
+          ? "No se pudo actualizar el presupuesto"
+          : "No se pudo guardar el presupuesto",
+        err.message
+      );
+    }
+  }
+
+  /** Carga el presupuesto en el formulario para editarlo. */
+  function editarPresupuesto(p) {
+    limpiar();
+    setEditandoPresupuesto(p.id);
+    setFormPres({
+      categoria: p.categoria,
+      limiteMensual: String(p.limiteMensual ?? ""),
+      mes: p.mes,
+    });
+  }
+
+  function cancelarEdicionPresupuesto() {
+    limpiar();
+    setEditandoPresupuesto(null);
+    setFormPres({ categoria: "", limiteMensual: "", mes: mes });
+  }
+
+  async function confirmarEliminarPresupuesto() {
+    const id = porEliminarPresupuesto;
+    setPorEliminarPresupuesto(null);
+    limpiar();
+    try {
+      await api(`/api/transacciones/presupuestos/${id}`, { method: "DELETE" });
+      exito("Presupuesto eliminado", "El límite de esa categoría se quitó.");
+      if (editandoPresupuesto === id) cancelarEdicionPresupuesto();
+      await cargar(mes);
+    } catch (err) {
+      fallo("No se pudo eliminar el presupuesto", err.message);
+    }
+  }
+
+  // ---------- Cálculos de la pestaña de presupuestos ----------
+
+  const totalPresupuestado = presupuestos.reduce(
+    (suma, p) => suma + Number(p.limiteMensual || 0),
+    0
+  );
+  const totalGastado = presupuestos.reduce((suma, p) => {
+    const estado = estados[p.categoria];
+    return suma + (estado ? Number(estado.gastoAcumulado || 0) : 0);
+  }, 0);
+  const totalRestante = totalPresupuestado - totalGastado;
+  const porcentajeGlobal =
+    totalPresupuestado > 0 ? (totalGastado / totalPresupuestado) * 100 : 0;
+
+  /** Zona de la barra: normal (<80%), alerta (80-99%) o excedido (>=100%). */
+  function zonaDe(pct) {
+    if (pct >= 100) return "excedido";
+    if (pct >= 80) return "alerta";
+    return "normal";
   }
 
   const visibles = transacciones.filter((t) => !filtro || t.tipo === filtro);
@@ -280,6 +340,29 @@ export default function TransaccionesPage() {
 
       {recuadro}
 
+      <div className="tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={pestana === "movimientos"}
+          className={`tab ${pestana === "movimientos" ? "activa" : ""}`}
+          onClick={() => setPestana("movimientos")}
+        >
+          💳 Movimientos
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={pestana === "presupuestos"}
+          className={`tab ${pestana === "presupuestos" ? "activa" : ""}`}
+          onClick={() => setPestana("presupuestos")}
+        >
+          🎯 Presupuestos
+        </button>
+      </div>
+
+      {pestana === "movimientos" && (
+        <>
       <section className="panel">
         <div className="pagina-titulo" style={{ marginBottom: "0.75rem" }}>
           <h2 style={{ margin: 0 }}>Movimientos de {mesBonito(mes)}</h2>
@@ -333,7 +416,24 @@ export default function TransaccionesPage() {
                         {t.tipo}
                       </span>
                     </td>
-                    <td style={{ textTransform: "capitalize" }}>{t.categoria}</td>
+                    <td>
+                      <span className="cat-celda">
+                        <span
+                          className="cat-icono"
+                          style={
+                            estiloCategoria(todas, t.categoria).color
+                              ? { color: estiloCategoria(todas, t.categoria).color }
+                              : undefined
+                          }
+                          aria-hidden="true"
+                        >
+                          {estiloCategoria(todas, t.categoria).icono}
+                        </span>
+                        <span style={{ textTransform: "capitalize" }}>
+                          {t.categoria}
+                        </span>
+                      </span>
+                    </td>
                     <td
                       className={
                         t.tipo === "INGRESO"
@@ -374,8 +474,7 @@ export default function TransaccionesPage() {
         )}
       </section>
 
-      <div className="grid-2">
-        <section className="panel">
+      <section className="panel">
           <h2>{editando ? "Editar transacción" : "Registrar transacción"}</h2>
           <form className="formulario" onSubmit={enviar}>
             <div className="fila">
@@ -384,7 +483,11 @@ export default function TransaccionesPage() {
                 <Selector
                   id="tipo"
                   valor={form.tipo}
-                  onChange={(v) => setForm({ ...form, tipo: v })}
+                  onChange={(v) =>
+                    // Al cambiar de tipo se limpia la categoría: una categoría
+                    // de gasto no es válida como ingreso (y al revés).
+                    setForm({ ...form, tipo: v, categoria: "" })
+                  }
                   opciones={[
                     { valor: "GASTO", etiqueta: "Gasto" },
                     { valor: "INGRESO", etiqueta: "Ingreso" },
@@ -408,19 +511,13 @@ export default function TransaccionesPage() {
             <div className="fila">
               <div className="campo">
                 <label htmlFor="categoria">Categoría</label>
-                <input
+                <Selector
                   id="categoria"
-                  list="lista-categorias"
-                  placeholder="comida"
-                  value={form.categoria}
-                  onChange={cambiar("categoria")}
-                  required
+                  valor={form.categoria}
+                  onChange={(v) => setForm({ ...form, categoria: v })}
+                  opciones={opcionesCategoria(form.tipo)}
+                  placeholder="Elegir categoría"
                 />
-                <datalist id="lista-categorias">
-                  {CATEGORIAS.map((c) => (
-                    <option key={c} value={c} />
-                  ))}
-                </datalist>
               </div>
               <div className="campo">
                 <label htmlFor="fecha">Fecha</label>
@@ -473,84 +570,196 @@ export default function TransaccionesPage() {
             )}
           </form>
         </section>
+        </>
+      )}
 
-        <section className="panel">
-          <h2>Presupuestos de {mesBonito(mes)}</h2>
-          <form className="formulario" onSubmit={guardarPresupuesto}>
-            <div className="fila">
-              <div className="campo">
-                <label htmlFor="cat-pres">Categoría</label>
-                <input
-                  id="cat-pres"
-                  list="lista-categorias"
-                  placeholder="comida"
-                  value={formPres.categoria}
-                  onChange={(e) =>
-                    setFormPres({ ...formPres, categoria: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="campo">
-                <label htmlFor="limite">Límite mensual</label>
-                <input
-                  id="limite"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  placeholder="1500.00"
-                  value={formPres.limiteMensual}
-                  onChange={(e) =>
-                    setFormPres({ ...formPres, limiteMensual: e.target.value })
-                  }
-                  required
-                />
-              </div>
-            </div>
-            <div className="campo">
-              <label htmlFor="mes-pres">Mes</label>
-              <SelectorMes
-                id="mes-pres"
-                valor={formPres.mes}
-                onChange={(v) => setFormPres({ ...formPres, mes: v })}
-              />
-            </div>
-            <button className="btn" type="submit">
-              Guardar presupuesto
-            </button>
-          </form>
+      {pestana === "presupuestos" && (
+        <>
+      <section className="panel">
+        <div className="pagina-titulo" style={{ marginBottom: "0.75rem" }}>
+          <h2 style={{ margin: 0 }}>Presupuestos de {mesBonito(mes)}</h2>
+          <span className="control-mes">
+            <span className="etiqueta-suave">
+              {presupuestos.length} categoría(s) con límite
+            </span>
+          </span>
+        </div>
 
-          <div style={{ marginTop: "1.25rem" }}>
-            {presupuestos.length === 0 ? (
-              <p className="vacio">Sin presupuestos para este mes</p>
-            ) : (
-              presupuestos.map((p) => {
-                const estado = estados[p.categoria];
-                const gastado = estado ? Number(estado.gastoAcumulado) : 0;
-                const limite = Number(p.limiteMensual);
-                const porcentaje = estado ? Number(estado.porcentajeUsado) : 0;
-                const clase =
-                  porcentaje >= 80 ? "barra alerta" : "barra";
-                return (
-                  <div key={p.id} style={{ marginBottom: "1rem" }}>
-                    <div className="progreso-dato" style={{ marginBottom: "0.25rem" }}>
-                      <span style={{ textTransform: "capitalize", color: "#e6edf7" }}>
+        <div className="kpi-strip">
+          <div className="kpi-item">
+            <span className="kpi-etiqueta">Presupuestado</span>
+            <span className="kpi-valor">{dinero(totalPresupuestado)}</span>
+          </div>
+          <div className="kpi-item">
+            <span className="kpi-etiqueta">Gastado</span>
+            <span className="kpi-valor">{dinero(totalGastado)}</span>
+          </div>
+          <div className="kpi-item">
+            <span className="kpi-etiqueta">Restante</span>
+            <span
+              className={`kpi-valor ${
+                totalRestante < 0 ? "negativo" : "positivo"
+              }`}
+            >
+              {dinero(totalRestante)}
+            </span>
+          </div>
+          <div className="kpi-item">
+            <span className="kpi-etiqueta">% de ejecución global</span>
+            <span
+              className={`kpi-valor ${
+                zonaDe(porcentajeGlobal) === "excedido"
+                  ? "negativo"
+                  : zonaDe(porcentajeGlobal) === "alerta"
+                  ? "alerta-valor"
+                  : ""
+              }`}
+            >
+              {porcentajeGlobal.toFixed(1)}%
+            </span>
+          </div>
+        </div>
+
+        {presupuestos.length === 0 ? (
+          <p className="vacio">
+            Sin presupuestos para este mes. Define un límite por categoría para
+            recibir avisos automáticos cuando lo excedas.
+          </p>
+        ) : (
+          <div className="presupuestos-lista">
+            {presupuestos.map((p) => {
+              const estado = estados[p.categoria];
+              const gastado = estado ? Number(estado.gastoAcumulado || 0) : 0;
+              const limite = Number(p.limiteMensual || 0);
+              const porcentaje = estado ? Number(estado.porcentajeUsado || 0) : 0;
+              const restante = estado
+                ? Number(estado.restante ?? limite - gastado)
+                : limite - gastado;
+              const zona = zonaDe(porcentaje);
+              const cat = estiloCategoria(todas, p.categoria);
+              return (
+                <article key={p.id} className={`presupuesto-card ${zona}`}>
+                  <div className="presupuesto-cabecera">
+                    <span className="presupuesto-cat">
+                      <span
+                        className="cat-icono"
+                        style={cat.color ? { color: cat.color } : undefined}
+                        aria-hidden="true"
+                      >
+                        {cat.icono}
+                      </span>
+                      <span style={{ textTransform: "capitalize" }}>
                         {p.categoria}
                       </span>
-                      <span>
-                        {dinero(gastado)} / {dinero(limite)} ({porcentaje.toFixed(1)}%)
-                      </span>
-                    </div>
-                    <div className={clase}>
-                      <i style={{ width: `${Math.min(porcentaje, 100)}%` }}></i>
-                    </div>
+                    </span>
+                    <span className={`presupuesto-pct ${zona}`}>
+                      {porcentaje.toFixed(1)}%
+                    </span>
                   </div>
-                );
-              })
+
+                  <div className={`barra-pista ${zona}`}>
+                    <i style={{ width: `${Math.min(porcentaje, 100)}%` }}></i>
+                    <span className="marca-80" title="80% del límite"></span>
+                  </div>
+
+                  <div className="presupuesto-pie">
+                    <span>
+                      {dinero(gastado)} de {dinero(limite)}
+                    </span>
+                    <span className={restante < 0 ? "negativo" : "restante-ok"}>
+                      {restante < 0
+                        ? `Te pasaste por ${dinero(Math.abs(restante))}`
+                        : `Restante ${dinero(restante)}`}
+                    </span>
+                  </div>
+
+                  <div className="acciones">
+                    <button
+                      type="button"
+                      className="btn btn-secundario btn-mini"
+                      onClick={() => editarPresupuesto(p)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-peligro btn-mini"
+                      onClick={() => setPorEliminarPresupuesto(p.id)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="panel">
+        <h2>
+          {editandoPresupuesto
+            ? "Editar presupuesto"
+            : `Nuevo presupuesto para ${mesBonito(mes)}`}
+        </h2>
+        <form className="formulario" onSubmit={guardarPresupuesto}>
+          <div className="fila">
+            <div className="campo">
+              <label htmlFor="cat-pres">Categoría</label>
+              <Selector
+                id="cat-pres"
+                valor={formPres.categoria}
+                onChange={(v) => setFormPres({ ...formPres, categoria: v })}
+                opciones={opcionesGasto}
+                placeholder="Elegir categoría"
+              />
+            </div>
+            <div className="campo">
+              <label htmlFor="limite">Límite mensual</label>
+              <input
+                id="limite"
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="1500.00"
+                value={formPres.limiteMensual}
+                onChange={(e) =>
+                  setFormPres({ ...formPres, limiteMensual: e.target.value })
+                }
+                required
+              />
+            </div>
+          </div>
+          <div className="campo">
+            <label htmlFor="mes-pres">Mes</label>
+            <SelectorMes
+              id="mes-pres"
+              valor={formPres.mes}
+              onChange={(v) => setFormPres({ ...formPres, mes: v })}
+            />
+          </div>
+          <div className="fila">
+            <button className="btn" type="submit">
+              {editandoPresupuesto ? "Guardar cambios" : "Guardar presupuesto"}
+            </button>
+            {editandoPresupuesto && (
+              <button
+                type="button"
+                className="btn btn-secundario"
+                onClick={cancelarEdicionPresupuesto}
+              >
+                Cancelar
+              </button>
             )}
           </div>
-        </section>
-      </div>
+          <p className="form-nota">
+            Cuando llegues al 80% del límite (o lo excedas) recibes un aviso
+            automático: no hace falta que verifiques nada a mano.
+          </p>
+        </form>
+      </section>
+        </>
+      )}
 
       <AsignarMetaModal
         visible={asignando}
@@ -568,6 +777,15 @@ export default function TransaccionesPage() {
         textoConfirmar="Sí, eliminar"
         onConfirmar={confirmarEliminar}
         onCancelar={() => setPorEliminar(null)}
+      />
+
+      <ModalConfirmacion
+        visible={porEliminarPresupuesto !== null}
+        titulo="Eliminar presupuesto"
+        mensaje="Se quitará el límite mensual de esa categoría. ¿Deseas continuar?"
+        textoConfirmar="Sí, eliminar"
+        onConfirmar={confirmarEliminarPresupuesto}
+        onCancelar={() => setPorEliminarPresupuesto(null)}
       />
     </>
   );

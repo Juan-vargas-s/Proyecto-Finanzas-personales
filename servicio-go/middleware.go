@@ -15,7 +15,12 @@ func claimsDeAutorizacion(c *gin.Context) (jwt.MapClaims, error) {
 	if !strings.HasPrefix(header, "Bearer ") {
 		return nil, errors.New("encabezado Authorization ausente")
 	}
-	tokenStr := strings.TrimPrefix(header, "Bearer ")
+	return claimsDeToken(strings.TrimPrefix(header, "Bearer "))
+}
+
+// claimsDeToken valida un token JWT suelto. Lo usa el endpoint SSE, donde
+// el token llega en la query porque EventSource no puede mandar cabeceras.
+func claimsDeToken(tokenStr string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
 		secret := os.Getenv("JWT_SECRET")
 		if secret == "" {
@@ -31,6 +36,19 @@ func claimsDeAutorizacion(c *gin.Context) (jwt.MapClaims, error) {
 		return nil, errors.New("token inválido")
 	}
 	return claims, nil
+}
+
+// uidDeToken devuelve el usuarioId de un token suelto.
+func uidDeToken(tokenStr string) (string, bool) {
+	claims, err := claimsDeToken(tokenStr)
+	if err != nil {
+		return "", false
+	}
+	usuarioID, ok := claims["usuarioId"].(string)
+	if !ok || usuarioID == "" {
+		return "", false
+	}
+	return usuarioID, true
 }
 
 func authRequerido() gin.HandlerFunc {

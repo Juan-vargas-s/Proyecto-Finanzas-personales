@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func registrarRutas(r *gin.Engine, store *RedisStore, eventos *PublicadorEventos) {
+func registrarRutas(r *gin.Engine, store *RedisStore, eventos *PublicadorEventos, hub *HubSSE) {
 	api := r.Group("/api/metas")
 	{
 		api.POST("", authRequerido(), func(c *gin.Context) {
@@ -277,7 +278,62 @@ func registrarRutas(r *gin.Engine, store *RedisStore, eventos *PublicadorEventos
 			_ = body
 			c.Set("usuarioId", uid)
 			// Reutilizar lógica: pasar por handler
-			verificarPresupuestosHandler(c, store, uid)
+			verificarPresupuestosHandler(c, store, hub, eventos, uid)
+		})
+
+		// Flujo de alertas en vivo (Server-Sent Events). El token llega en la
+		// query porque EventSource no permite mandar cabeceras.
+		api.GET("/stream", func(c *gin.Context) {
+			token := c.Query("token")
+			if token == "" {
+				header := c.GetHeader("Authorization")
+				if strings.HasPrefix(header, "Bearer ") {
+					token = strings.TrimPrefix(header, "Bearer ")
+				}
+			}
+			usuarioID, ok := uidDeToken(token)
+			if !ok {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token JWT inválido o ausente"})
+				return
+			}
+			canal, cerrar := hub.Suscribir(usuarioID)
+			defer cerrar()
+
+			c.Writer.Header().Set("Content-Type", "text/event-stream")
+			c.Writer.Header().Set("Cache-Control", "no-cache")
+			c.Writer.Header().Set("Connection", "keep-alive")
+			// Evita que nginx acumule la respuesta en su búfer.
+			c.Writer.Header().Set("X-Accel-Buffering", "no")
+			c.Writer.WriteHeader(http.StatusOK)
+			c.Writer.Flush()
+
+			// Saludo inicial: el navegador confirma que la conexión está viva.
+			fmt.Fprintf(c.Writer, "event: conectado\ndata: {\"usuarioId\":\"%s\"}\n\n", usuarioID)
+			c.Writer.Flush()
+
+			latido := time.NewTicker(25 * time.Second)
+			defer latido.Stop()
+
+			for {
+				select {
+				case <-c.Request.Context().Done():
+					return
+				case n, ok := <-canal:
+					if !ok {
+						return
+					}
+					payload, err := json.Marshal(n)
+					if err != nil {
+						continue
+					}
+					fmt.Fprintf(c.Writer, "event: notificacion\ndata: %s\n\n", payload)
+					c.Writer.Flush()
+				case <-latido.C:
+					// Comentario SSE: mantiene viva la conexión.
+					fmt.Fprint(c.Writer, ": latido\n\n")
+					c.Writer.Flush()
+				}
+			}
 		})
 
 		api.GET("/notificaciones/:usuarioId", func(c *gin.Context) {
@@ -315,7 +371,8 @@ func registrarRutas(r *gin.Engine, store *RedisStore, eventos *PublicadorEventos
 	}
 }
 
-func verificarPresupuestosHandler(c *gin.Context, store *RedisStore, usuarioID string) {
+func verificarPresupuestosHandler(c *gin.Context, store *RedisStore, hub *HubSSE,
+	eventos *PublicadorEventos, usuarioID string) {
 	mes := c.Query("mes")
 	if mes == "" {
 		mes = time.Now().Format("2006-01")
@@ -325,32 +382,14 @@ func verificarPresupuestosHandler(c *gin.Context, store *RedisStore, usuarioID s
 
 	// Una sola llamada trae el estado (gasto acumulado) de TODOS los presupuestos
 	// del mes: se elimina el N+1 de preguntar categoría por categoría.
-	urlEstado := fmt.Sprintf("%s/api/transacciones/presupuestos/estado?usuarioId=%s&mes=%s", urlJava(), usuarioID, mes)
-	var estados []PresupuestoEstado
-	if err := getJSON(ctx, urlEstado, &estados); err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+	creadas, err := evaluarPresupuestosYAlertar(ctx, store, hub, eventos, usuarioID, mes)
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"usuarioId": usuarioID,
+			"mes":       mes,
+			"error":     "no se pudo consultar el estado de los presupuestos",
+		})
 		return
-	}
-
-	creadas := 0
-	for _, est := range estados {
-		if est.LimiteMensual <= 0 || est.PorcentajeUsado < 80 {
-			continue
-		}
-		if store.YaAlertado(ctx, usuarioID, mes, est.Categoria) {
-			continue
-		}
-		n := Notificacion{
-			ID:       uuid.NewString(),
-			Mensaje:  fmt.Sprintf("Llegaste al %.1f%% de tu presupuesto de %s", est.PorcentajeUsado, est.Categoria),
-			Tipo:     "PRESUPUESTO",
-			Leida:    false,
-			CreadaEn: time.Now().UTC().Format(time.RFC3339),
-		}
-		if err := store.CrearNotificacion(ctx, usuarioID, n); err == nil {
-			store.MarcarAlertado(ctx, usuarioID, mes, est.Categoria)
-			creadas++
-		}
 	}
 	c.JSON(http.StatusOK, gin.H{"usuarioId": usuarioID, "mes": mes, "alertasGeneradas": creadas})
 }
