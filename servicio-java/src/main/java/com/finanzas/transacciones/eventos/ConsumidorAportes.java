@@ -125,22 +125,40 @@ public class ConsumidorAportes {
         }
     }
 
-    private void procesar(MapRecord<String, Object, Object> record) throws Exception {
+    private void procesar(MapRecord<String, Object, Object> record) {
         Map<String, String> campos = new HashMap<>();
         record.getValue().forEach((k, v) ->
                 campos.put(String.valueOf(k), v == null ? null : String.valueOf(v)));
-        MetaAporteEvento evento = objectMapper.convertValue(campos, MetaAporteEvento.class);
 
-        boolean retiro = "meta.aporte.retirado".equals(evento.tipo());
-        if (!retiro && !"meta.aporte.registrado".equals(evento.tipo())) {
+        // El stream es compartido por varios servicios: se mira el tipo antes
+        // de deserializar. Asi los eventos ajenos se confirman sin intentar
+        // convertirlos (sus campos no encajan en MetaAporteEvento).
+        String tipo = campos.get("tipo");
+        boolean retiro = "meta.aporte.retirado".equals(tipo);
+        if (!retiro && !"meta.aporte.registrado".equals(tipo)) {
+            confirmar(record);
             return;
         }
+
+        MetaAporteEvento evento = objectMapper.convertValue(campos, MetaAporteEvento.class);
         if (evento.usuarioId() == null || evento.usuarioId().isBlank()) {
+            confirmar(record);
             return;
         }
-        UUID usuarioId = UUID.fromString(evento.usuarioId());
-        UUID metaId = vacio(evento.metaId()) ? null : UUID.fromString(evento.metaId());
-        UUID aporteId = vacio(evento.aporteId()) ? null : UUID.fromString(evento.aporteId());
+        UUID usuarioId;
+        UUID metaId;
+        UUID aporteId;
+        try {
+            usuarioId = UUID.fromString(evento.usuarioId());
+            metaId = vacio(evento.metaId()) ? null : UUID.fromString(evento.metaId());
+            aporteId = vacio(evento.aporteId()) ? null : UUID.fromString(evento.aporteId());
+        } catch (IllegalArgumentException ex) {
+            // Un evento con UUID invalido no se puede reprocesar nunca: se
+            // confirma para que no bloquee el PEL del grupo.
+            log.warn("Evento {} descartado por UUID invalido: {}", record.getId(), ex.getMessage());
+            confirmar(record);
+            return;
+        }
         BigDecimal monto = evento.monto() == null ? BigDecimal.ZERO : evento.monto();
         LocalDate fecha = vacio(evento.fecha()) ? LocalDate.now() : LocalDate.parse(evento.fecha());
 

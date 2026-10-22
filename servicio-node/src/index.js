@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const { z } = require('zod');
 const { PrismaClient } = require('@prisma/client');
+const { arrancarConsumidorAlertas } = require('./eventos');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -416,6 +417,27 @@ app.post('/api/auth/reenviar-codigo', async (req, res) => {
   }
 });
 
+let detenerEventos = null;
+
 app.listen(PORT, () => {
   console.log(`Servicio Auth (Node.js) escuchando en el puerto ${PORT}`);
+
+  // Consumidor del bus de eventos: Go publica `alerta.creada` cuando un
+  // presupuesto cruza el 80 % o se excede; aquí se manda el correo.
+  detenerEventos = arrancarConsumidorAlertas({
+    prisma,
+    transporter,
+    smtpHabilitado,
+    emailFrom: EMAIL_FROM,
+  });
 });
+
+async function apagar(senal) {
+  console.log(`Señal ${senal}: cerrando el servicio…`);
+  if (detenerEventos) await detenerEventos();
+  await prisma.$disconnect();
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => apagar('SIGTERM'));
+process.on('SIGINT', () => apagar('SIGINT'));

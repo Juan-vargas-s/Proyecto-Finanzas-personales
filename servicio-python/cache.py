@@ -69,3 +69,32 @@ async def guardar(usuario_id: str, tipo: str, valor: Any, mes: str | None = None
         await _cliente.set(_clave(usuario_id, tipo, mes), json.dumps(valor), ex=TTL_SEGUNDOS)
     except Exception as exc:
         logger.warning("No se pudo escribir en la caché de Redis: %s", exc)
+
+
+async def invalidar_usuario(usuario_id: str) -> int:
+    """Borra todas las entradas de reportes del usuario (resumen/categorías/tendencia).
+
+    Se llama desde el consumidor de eventos cuando Go publica un aporte o
+    retiro a meta: ese movimiento cambia el ahorro y el disponible del mes, así
+    que las entradas cacheadas quedan obsoletas antes de que expire el TTL.
+    Devuelve cuántas claves se borraron (0 si Redis no está disponible).
+    """
+    if _cliente is None:
+        return 0
+    patron = _clave(usuario_id, "*")
+    borradas = 0
+    try:
+        lote: list[str] = []
+        async for clave in _cliente.scan_iter(match=patron, count=100):
+            lote.append(clave)
+            if len(lote) >= 100:
+                borradas += await _cliente.delete(*lote)
+                lote = []
+        if lote:
+            borradas += await _cliente.delete(*lote)
+    except Exception as exc:
+        logger.warning("No se pudo invalidar la caché de %s: %s", usuario_id, exc)
+        return 0
+    if borradas:
+        logger.info("Caché invalidada para %s (%d claves)", usuario_id, borradas)
+    return borradas

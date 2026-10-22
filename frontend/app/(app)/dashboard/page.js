@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, usuarioId } from "../../../lib/api";
 import { formatear, useMoneda } from "../../../lib/dinero";
 import { GraficaPastel, GraficaTendencia } from "../../../components/Graficas";
+import { EsqueletoGrafica } from "../../../components/Esqueleto";
 import { SelectorMes, mesBonito } from "../../../components/Fechas";
 import { useRecuadro } from "../../../components/Modal";
 
@@ -117,7 +118,7 @@ export default function DashboardPage() {
         <section className="panel">
           <h2>Gastos por categoría · {mesBonito(mes)}</h2>
           {cargando && !resumen ? (
-            <p className="vacio">Cargando…</p>
+            <EsqueletoGrafica />
           ) : (
             <GraficaPastel categorias={categorias} />
           )}
@@ -126,7 +127,7 @@ export default function DashboardPage() {
         <section className="panel">
           <h2>Tendencia de los últimos 6 meses</h2>
           {cargando && tendencia.length === 0 ? (
-            <p className="vacio">Cargando…</p>
+            <EsqueletoGrafica />
           ) : (
             <GraficaTendencia meses={tendencia} />
           )}

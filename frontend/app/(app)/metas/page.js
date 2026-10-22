@@ -9,6 +9,7 @@ import { SelectorFecha, fechaBonita } from "../../../components/Fechas";
 import Selector from "../../../components/Selector";
 import FlujoDinero from "../../../components/FlujoDinero";
 import TarjetaMeta from "../../../components/TarjetaMeta";
+import { Esqueleto, EsqueletoMetas } from "../../../components/Esqueleto";
 
 function mesActual() {
   const hoy = new Date();
@@ -281,10 +282,16 @@ export default function MetasPage() {
         </div>
 
         {cargando ? (
-          <p className="vacio">Cargando…</p>
+          <EsqueletoMetas />
         ) : metas.length === 0 ? (
-          <div className="vacio">
-            <p>Aún no tienes metas de ahorro.</p>
+          <div className="vacio-accion">
+            <span className="vacio-icono" aria-hidden="true">
+              🎯
+            </span>
+            <span className="vacio-titulo">Aún no tienes metas de ahorro</span>
+            <p className="vacio-detalle">
+              Crea una meta y separa dinero cada mes hasta lograrla.
+            </p>
             <button className="btn" onClick={abrirCrear}>
               Crear primera meta
             </button>
@@ -393,7 +400,10 @@ export default function MetasPage() {
         {aportesDe && (
           <div className="aportes-lista">
             {aportesDe.cargando ? (
-              <p className="vacio">Cargando…</p>
+              <Esqueleto
+                className="esqueleto-linea"
+                estilo={{ width: "65%", margin: "0.4rem 0" }}
+              />
             ) : aportesDe.lista.length === 0 ? (
               <p className="vacio">Esta meta todavía no tiene aportes.</p>
             ) : (

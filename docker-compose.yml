@@ -45,8 +45,15 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       EMAIL_FROM: ${EMAIL_FROM}
+      # Redis Streams: consume `alerta.creada` (publicado por Go) y manda el
+      # correo de la alerta con el mismo SMTP del registro.
+      REDIS_URL: ${REDIS_URL}
+      REDIS_EVENTOS_STREAM: ${REDIS_EVENTOS_STREAM:-eventos:finanzas}
+      EVENTOS_GROUP_NODE: ${EVENTOS_GROUP_NODE:-node}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
@@ -93,6 +100,9 @@ services:
     environment:
       JAVA_SERVICE_URL: ${JAVA_SERVICE_URL}
       REDIS_URL: ${REDIS_URL}
+      # Redis Streams: invalida la caché de reportes cuando hay un aporte.
+      REDIS_EVENTOS_STREAM: ${REDIS_EVENTOS_STREAM:-eventos:finanzas}
+      EVENTOS_GROUP_PYTHON: ${EVENTOS_GROUP_PYTHON:-python}
     depends_on:
       servicio-java:
         condition: service_healthy

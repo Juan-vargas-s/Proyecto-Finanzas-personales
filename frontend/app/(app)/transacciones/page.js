@@ -8,6 +8,7 @@ import { ModalConfirmacion, useRecuadro } from "../../../components/Modal";
 import Selector from "../../../components/Selector";
 import AsignarMetaModal from "../../../components/AsignarMetaModal";
 import { SelectorFecha, SelectorMes, fechaBonita, mesBonito } from "../../../components/Fechas";
+import { EsqueletoTabla } from "../../../components/Esqueleto";
 
 function hoyISO() {
   const d = new Date();
@@ -40,6 +41,7 @@ export default function TransaccionesPage() {
   const [presupuestos, setPresupuestos] = useState([]);
   const [estados, setEstados] = useState({});
   const [filtro, setFiltro] = useState("");
+  const [busqueda, setBusqueda] = useState("");
   const [form, setForm] = useState(formVacio());
   const [editando, setEditando] = useState(null);
   const [formPres, setFormPres] = useState({
@@ -90,6 +92,29 @@ export default function TransaccionesPage() {
   useEffect(() => {
     cargar(mes);
   }, [mes, cargar]);
+
+  // La búsqueda del topbar llega por la URL (?q=…) o por un evento al navegar
+  // dentro de la misma ruta.
+  useEffect(() => {
+    const inicial = new URLSearchParams(window.location.search).get("q");
+    if (inicial) setBusqueda(inicial);
+
+    function alBuscar(e) {
+      setBusqueda(e.detail || "");
+    }
+    window.addEventListener("finanzas:buscar", alBuscar);
+    return () => window.removeEventListener("finanzas:buscar", alBuscar);
+  }, []);
+
+  function enfocarFormulario(idForm, idCampo) {
+    document
+      .getElementById(idForm)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const campo = idCampo
+      ? document.querySelector(`#${idCampo} button, #${idCampo}`)
+      : null;
+    if (campo instanceof HTMLElement) campo.focus({ preventScroll: true });
+  }
 
   function cambiar(campo) {
     return (e) => setForm({ ...form, [campo]: e.target.value });
@@ -321,7 +346,15 @@ export default function TransaccionesPage() {
     return "normal";
   }
 
-  const visibles = transacciones.filter((t) => !filtro || t.tipo === filtro);
+  const textoBusqueda = busqueda.trim().toLowerCase();
+  const visibles = transacciones.filter((t) => {
+    if (filtro && t.tipo !== filtro) return false;
+    if (!textoBusqueda) return true;
+    return (
+      (t.descripcion || "").toLowerCase().includes(textoBusqueda) ||
+      (t.categoria || "").toLowerCase().includes(textoBusqueda)
+    );
+  });
 
   const dinero = (v) => formatear(v, moneda);
 
@@ -367,6 +400,14 @@ export default function TransaccionesPage() {
         <div className="pagina-titulo" style={{ marginBottom: "0.75rem" }}>
           <h2 style={{ margin: 0 }}>Movimientos de {mesBonito(mes)}</h2>
           <div className="control-mes">
+            <input
+              type="search"
+              className="campo-busqueda"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar…"
+              aria-label="Buscar en los movimientos del mes"
+            />
             <span>Filtrar</span>
             <Selector
               className="selector-estrecho"
@@ -383,9 +424,38 @@ export default function TransaccionesPage() {
         </div>
 
         {cargando ? (
-          <p className="vacio">Cargando…</p>
+          <EsqueletoTabla />
         ) : visibles.length === 0 ? (
-          <p className="vacio">No hay movimientos en este mes</p>
+          <div className="vacio-accion">
+            <span className="vacio-icono" aria-hidden="true">
+              {textoBusqueda ? "🔎" : "🧾"}
+            </span>
+            <span className="vacio-titulo">
+              {textoBusqueda
+                ? `Sin resultados para “${busqueda.trim()}”`
+                : "No hay movimientos en este mes"}
+            </span>
+            <p className="vacio-detalle">
+              {textoBusqueda
+                ? "Prueba con otra palabra o revisa el filtro de tipo."
+                : "Registra tu primer movimiento del mes para ver el resumen."}
+            </p>
+            {textoBusqueda ? (
+              <button
+                className="btn btn-secundario"
+                onClick={() => setBusqueda("")}
+              >
+                Limpiar búsqueda
+              </button>
+            ) : (
+              <button
+                className="btn"
+                onClick={() => enfocarFormulario("form-movimiento", "monto")}
+              >
+                Registrar movimiento
+              </button>
+            )}
+          </div>
         ) : (
           <div className="tabla-wrap">
             <table className="tabla">
@@ -476,7 +546,7 @@ export default function TransaccionesPage() {
 
       <section className="panel">
           <h2>{editando ? "Editar transacción" : "Registrar transacción"}</h2>
-          <form className="formulario" onSubmit={enviar}>
+          <form className="formulario" id="form-movimiento" onSubmit={enviar}>
             <div className="fila">
               <div className="campo">
                 <label htmlFor="tipo">Tipo</label>
@@ -620,11 +690,27 @@ export default function TransaccionesPage() {
           </div>
         </div>
 
-        {presupuestos.length === 0 ? (
-          <p className="vacio">
-            Sin presupuestos para este mes. Define un límite por categoría para
-            recibir avisos automáticos cuando lo excedas.
-          </p>
+        {cargando ? (
+          <EsqueletoTabla filas={3} />
+        ) : presupuestos.length === 0 ? (
+          <div className="vacio-accion">
+            <span className="vacio-icono" aria-hidden="true">
+              💸
+            </span>
+            <span className="vacio-titulo">
+              Sin presupuestos para este mes
+            </span>
+            <p className="vacio-detalle">
+              Define un límite por categoría y recibe avisos automáticos al 80%
+              y al excederlo.
+            </p>
+            <button
+              className="btn"
+              onClick={() => enfocarFormulario("form-presupuesto", "cat-pres")}
+            >
+              Crear presupuesto
+            </button>
+          </div>
         ) : (
           <div className="presupuestos-lista">
             {presupuestos.map((p) => {
@@ -702,7 +788,7 @@ export default function TransaccionesPage() {
             ? "Editar presupuesto"
             : `Nuevo presupuesto para ${mesBonito(mes)}`}
         </h2>
-        <form className="formulario" onSubmit={guardarPresupuesto}>
+          <form className="formulario" id="form-presupuesto" onSubmit={guardarPresupuesto}>
           <div className="fila">
             <div className="campo">
               <label htmlFor="cat-pres">Categoría</label>

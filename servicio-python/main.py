@@ -4,6 +4,7 @@ from datetime import date
 from uuid import UUID
 
 import httpx
+import logging
 import redis.asyncio as redis
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -11,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import cache
+import consumidor
 from cliente_java import (
     TIMEOUT,
     configurar_cliente,
@@ -21,20 +23,26 @@ from cliente_java import (
 
 load_dotenv()
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Cliente HTTP de Java y cliente de Redis compartidos por toda la app."""
+    """Cliente HTTP de Java, cliente de Redis y consumidor de eventos."""
     cliente = httpx.AsyncClient(timeout=TIMEOUT)
     configurar_cliente(cliente)
+    tarea_eventos = None
     try:
-        cache.configurar(redis.from_url(cache.REDIS_URL, decode_responses=True))
+        cliente_redis = redis.from_url(cache.REDIS_URL, decode_responses=True)
+        cache.configurar(cliente_redis)
+        tarea_eventos = consumidor.arrancar(cliente_redis)
     except Exception:
-        # Sin Redis el servicio sigue funcionando, solo que sin caché.
+        # Sin Redis el servicio sigue funcionando, solo que sin caché ni bus.
         cache.configurar(None)
     try:
         yield
     finally:
+        await consumidor.detener(tarea_eventos)
         await cliente.aclose()
         await cache.cerrar()
 

@@ -111,7 +111,7 @@ export default function Notificaciones({ usuarioId }) {
     <>
       {nueva && (
         <div className="aviso-flotante" role="status" ref={avisoRef}>
-          <span className="aviso-icono">
+          <span className="aviso-icono" aria-hidden="true">
             {nueva.tipo === "META" ? "🏆" : "⚠️"}
           </span>
           <span className="aviso-texto">{nueva.mensaje}</span>
@@ -119,6 +119,7 @@ export default function Notificaciones({ usuarioId }) {
             type="button"
             className="btn btn-secundario btn-mini"
             onClick={() => setNueva(null)}
+            aria-label="Cerrar aviso"
           >
             ✕
           </button>
@@ -129,11 +130,17 @@ export default function Notificaciones({ usuarioId }) {
         type="button"
         className="campana"
         title={enVivo ? "Notificaciones (en vivo)" : "Notificaciones"}
+        aria-label={`Notificaciones${
+          noLeidas.length > 0 ? `: ${noLeidas.length} sin leer` : ""
+        }`}
+        aria-expanded={abierta}
         onClick={() => setAbierta((a) => !a)}
       >
-        🔔
+        <span aria-hidden="true">🔔</span>
         {noLeidas.length > 0 && (
-          <span className="contador">{noLeidas.length}</span>
+          <span className="contador" aria-hidden="true">
+            {noLeidas.length}
+          </span>
         )}
       </button>
 
