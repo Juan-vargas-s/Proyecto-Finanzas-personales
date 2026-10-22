@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-func registrarRutas(r *gin.Engine, store *RedisStore) {
+func registrarRutas(r *gin.Engine, store *RedisStore, eventos *PublicadorEventos) {
 	api := r.Group("/api/metas")
 	{
 		api.POST("", authRequerido(), func(c *gin.Context) {
@@ -32,6 +33,7 @@ func registrarRutas(r *gin.Engine, store *RedisStore) {
 				MontoActual:   0,
 				FechaLimite:   req.FechaLimite,
 				CreadaEn:      time.Now().UTC().Format(time.RFC3339),
+				Categoria:     req.Categoria,
 			}
 			if err := store.CrearMeta(c.Request.Context(), usuarioID, m); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar la meta"})
@@ -58,8 +60,9 @@ func registrarRutas(r *gin.Engine, store *RedisStore) {
 			c.JSON(http.StatusOK, resp)
 		})
 
-		api.PUT("/:id/aportar", authRequerido(), func(c *gin.Context) {
-			var req AportarRequest
+		// Editar una meta (nombre, objetivo, fecha). Antes era imposible.
+		api.PUT("/:id", authRequerido(), func(c *gin.Context) {
+			var req ActualizarMetaRequest
 			if err := c.ShouldBindJSON(&req); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
 				return
@@ -76,12 +79,79 @@ func registrarRutas(r *gin.Engine, store *RedisStore) {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Meta no encontrada"})
 				return
 			}
-			m.MontoActual += req.Monto
-			if err := store.GuardarMeta(c.Request.Context(), usuarioID, *m); err != nil {
+			if req.Nombre != nil {
+				if !nombreValido(*req.Nombre) {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Nombre inválido"})
+					return
+				}
+				m.Nombre = strings.TrimSpace(*req.Nombre)
+			}
+			if req.MontoObjetivo != nil {
+				if *req.MontoObjetivo <= 0 {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "El monto objetivo debe ser mayor a 0"})
+					return
+				}
+				m.MontoObjetivo = *req.MontoObjetivo
+			}
+			if req.FechaLimite != nil {
+				if !fechaValida(*req.FechaLimite) {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Fecha límite inválida (usa YYYY-MM-DD)"})
+					return
+				}
+				m.FechaLimite = *req.FechaLimite
+			}
+			if req.Categoria != nil {
+				m.Categoria = *req.Categoria
+			}
+			if err := store.GuardarMetaDatos(c.Request.Context(), usuarioID, *m); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al guardar meta"})
 				return
 			}
-			if m.MontoObjetivo > 0 && m.MontoActual >= m.MontoObjetivo {
+			c.JSON(http.StatusOK, aMetaResponse(*m))
+		})
+
+		// Aportar a una meta. El saldo se actualiza con un único HINCRBYFLOAT
+		// (atómico) y el movimiento se publica como evento para que Java lo
+		// materialice como transacción AHORRO.
+		api.PUT("/:id/aportar", authRequerido(), func(c *gin.Context) {
+			var req AportarRequest
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
+				return
+			}
+			id := c.Param("id")
+			uid, _ := c.Get("usuarioId")
+			usuarioID := uid.(string)
+			ctx := c.Request.Context()
+			m, err := store.ObtenerMeta(ctx, usuarioID, id)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener meta"})
+				return
+			}
+			if m == nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Meta no encontrada"})
+				return
+			}
+			aporteID := uuid.NewString()
+			saldo, err := store.SumarAporte(ctx, usuarioID, id, req.Monto)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al registrar el aporte"})
+				return
+			}
+			m.MontoActual = saldo
+			store.RegistrarAporte(ctx, usuarioID, id, Aporte{
+				ID:       aporteID,
+				Monto:    req.Monto,
+				Tipo:     "APORTE",
+				CreadaEn: time.Now().UTC().Format(time.RFC3339),
+			})
+			if err := eventos.PublicarAporte(ctx, "meta.aporte.registrado", aporteID, usuarioID, id, m.Nombre, req.Monto); err != nil {
+				// El saldo ya está aplicado en Redis: se avisa del fallo del
+				// bus, pero no se revierte el aporte del usuario.
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Aporte registrado, pero no se pudo publicar el evento"})
+				return
+			}
+			if m.MontoObjetivo > 0 && saldo >= m.MontoObjetivo && !store.YaNotificadaMeta(ctx, usuarioID, id) {
 				n := Notificacion{
 					ID:       uuid.NewString(),
 					Mensaje:  fmt.Sprintf("¡Meta cumplida! %s", m.Nombre),
@@ -89,15 +159,103 @@ func registrarRutas(r *gin.Engine, store *RedisStore) {
 					Leida:    false,
 					CreadaEn: time.Now().UTC().Format(time.RFC3339),
 				}
-				_ = store.CrearNotificacion(c.Request.Context(), usuarioID, n)
+				if err := store.CrearNotificacion(ctx, usuarioID, n); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear la notificación"})
+					return
+				}
+				store.MarcarMetaNotificada(ctx, usuarioID, id)
 			}
 			c.JSON(http.StatusOK, aMetaResponse(*m))
+		})
+
+		// Retirar dinero de una meta (deshacer un aporte).
+		api.POST("/:id/retirar", authRequerido(), func(c *gin.Context) {
+			var req RetirarRequest
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
+				return
+			}
+			id := c.Param("id")
+			uid, _ := c.Get("usuarioId")
+			usuarioID := uid.(string)
+			ctx := c.Request.Context()
+			m, err := store.ObtenerMeta(ctx, usuarioID, id)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener meta"})
+				return
+			}
+			if m == nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Meta no encontrada"})
+				return
+			}
+			if req.Monto > m.MontoActual {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "El retiro es mayor que lo ahorrado en la meta"})
+				return
+			}
+			aporteID := uuid.NewString()
+			saldo, err := store.SumarAporte(ctx, usuarioID, id, -req.Monto)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al registrar el retiro"})
+				return
+			}
+			m.MontoActual = saldo
+			store.RegistrarAporte(ctx, usuarioID, id, Aporte{
+				ID:       aporteID,
+				Monto:    -req.Monto,
+				Tipo:     "RETIRO",
+				CreadaEn: time.Now().UTC().Format(time.RFC3339),
+			})
+			if err := eventos.PublicarAporte(ctx, "meta.aporte.retirado", aporteID, usuarioID, id, m.Nombre, req.Monto); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Retiro registrado, pero no se pudo publicar el evento"})
+				return
+			}
+			c.JSON(http.StatusOK, aMetaResponse(*m))
+		})
+
+		// Historial de aportes y retiros de una meta.
+		api.GET("/:id/aportes", func(c *gin.Context) {
+			id := c.Param("id")
+			uid, ok := uidOPcional(c)
+			if !ok {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token JWT inválido o ausente (o envía usuarioId en query)"})
+				return
+			}
+			aportes, err := store.ListarAportes(c.Request.Context(), uid, id)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al listar aportes"})
+				return
+			}
+			c.JSON(http.StatusOK, aportes)
+		})
+
+		// Resumen de ahorro: totales, metas completadas y ritmo.
+		api.GET("/resumen", func(c *gin.Context) {
+			uid, ok := uidOPcional(c)
+			if !ok {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token JWT inválido o ausente (o envía usuarioId en query)"})
+				return
+			}
+			metas, err := store.ListarMetas(c.Request.Context(), uid)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al listar metas"})
+				return
+			}
+			c.JSON(http.StatusOK, calcularResumenMetas(metas))
 		})
 
 		api.DELETE("/:id", authRequerido(), func(c *gin.Context) {
 			id := c.Param("id")
 			uid, _ := c.Get("usuarioId")
 			usuarioID := uid.(string)
+			m, err := store.ObtenerMeta(c.Request.Context(), usuarioID, id)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener meta"})
+				return
+			}
+			if m == nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Meta no encontrada"})
+				return
+			}
 			if err := store.EliminarMeta(c.Request.Context(), usuarioID, id); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al eliminar meta"})
 				return
@@ -195,4 +353,68 @@ func verificarPresupuestosHandler(c *gin.Context, store *RedisStore, usuarioID s
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{"usuarioId": usuarioID, "mes": mes, "alertasGeneradas": creadas})
+}
+
+// calcularResumenMetas deriva los KPIs de ahorro a partir de las metas del
+// usuario: total ahorrado, objetivo total, metas completadas, metas en riesgo
+// (las que no van al ritmo necesario para llegar a su fecha) y el ritmo medio
+// mensual de ahorro.
+func calcularResumenMetas(metas []Meta) MetaResumen {
+	r := MetaResumen{}
+	ahora := time.Now().UTC()
+	var sumaCreacion time.Time
+	for _, m := range metas {
+		r.TotalAhorrado += m.MontoActual
+		r.ObjetivoTotal += m.MontoObjetivo
+		if m.MontoObjetivo > 0 && m.MontoActual >= m.MontoObjetivo {
+			r.Completadas++
+		}
+		if metaEnRiesgo(m, ahora) {
+			r.EnRiesgo++
+		}
+		if t, err := time.Parse(time.RFC3339, m.CreadaEn); err == nil {
+			if sumaCreacion.IsZero() || t.Before(sumaCreacion) {
+				sumaCreacion = t
+			}
+		}
+	}
+	r.Metas = len(metas)
+	if r.TotalAhorrado > 0 && !sumaCreacion.IsZero() {
+		meses := ahora.Sub(sumaCreacion).Hours() / 24 / 30.44
+		if meses > 0 {
+			r.RitmoPromedio = r.TotalAhorrado / meses
+		}
+	}
+	return r
+}
+
+// metaEnRiesgo indica que la meta no va al ritmo necesario: hay que aportar
+// más por mes de los que se ha ahorrado hasta ahora.
+func metaEnRiesgo(m Meta, ahora time.Time) bool {
+	if m.MontoObjetivo <= 0 || m.FechaLimite == "" {
+		return false
+	}
+	fin, err := time.Parse("2006-01-02", m.FechaLimite)
+	if err != nil {
+		return false
+	}
+	diasRestantes := fin.Sub(ahora).Hours() / 24
+	if diasRestantes <= 0 {
+		return false
+	}
+	faltante := m.MontoObjetivo - m.MontoActual
+	if faltante <= 0 {
+		return false
+	}
+	// Ritmo necesario (por mes) frente al ritmo real (por mes).
+	ritmoNecesario := faltante / (diasRestantes / 30.44)
+	mesesTranscurridos := 0.0
+	if creada, err := time.Parse(time.RFC3339, m.CreadaEn); err == nil {
+		mesesTranscurridos = ahora.Sub(creada).Hours() / 24 / 30.44
+	}
+	if mesesTranscurridos <= 0 {
+		return false
+	}
+	ritmoReal := m.MontoActual / mesesTranscurridos
+	return ritmoNecesario > ritmoReal
 }

@@ -98,6 +98,27 @@ public interface TransaccionRepository extends JpaRepository<Transaccion, UUID>,
                                    @Param("fin") LocalDate fin);
 
     /**
+     * Dinero apartado en metas dentro del rango. Es el espejo de
+     * sumIngresosPorUsuario: el total ahorrado del mes. Los aportes son
+     * positivos y los retiros negativos, así que el SUM ya netsa.
+     */
+    @Query("""
+            SELECT COALESCE(SUM(t.monto), 0) FROM Transaccion t
+            WHERE t.usuarioId = :usuarioId
+              AND t.tipo = com.finanzas.transacciones.model.TipoTransaccion.AHORRO
+              AND t.fecha BETWEEN :inicio AND :fin
+            """)
+    BigDecimal sumAhorrosPorUsuario(@Param("usuarioId") UUID usuarioId,
+                                   @Param("inicio") LocalDate inicio,
+                                   @Param("fin") LocalDate fin);
+
+    /**
+     * Idempotencia del consumidor de eventos: si el aporte ya se materializó
+     * como transacción, no se vuelve a aplicar.
+     */
+    boolean existsByAporteId(UUID aporteId);
+
+    /**
      * Ingresos agrupados por mes en un rango. Una sola consulta cubre toda la
      * serie de tendencia, en lugar de una consulta por mes.
      */

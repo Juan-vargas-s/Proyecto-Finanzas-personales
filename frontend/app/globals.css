@@ -404,6 +404,10 @@ h3 {
   color: var(--error);
 }
 
+.ahorro {
+  color: var(--acento);
+}
+
 .panel {
   position: relative;
   background: linear-gradient(180deg, rgba(22, 33, 58, 0.55), rgba(17, 26, 46, 0.95));
@@ -1067,6 +1071,11 @@ h3 {
 .badge-gasto {
   background: rgba(248, 113, 113, 0.15);
   color: var(--error);
+}
+
+.badge-ahorro {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--acento);
 }
 
 .vacio {

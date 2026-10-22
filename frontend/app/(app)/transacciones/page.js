@@ -226,6 +226,7 @@ export default function TransaccionesPage() {
                 { valor: "", etiqueta: "Todos" },
                 { valor: "INGRESO", etiqueta: "Ingresos" },
                 { valor: "GASTO", etiqueta: "Gastos" },
+                { valor: "AHORRO", etiqueta: "Ahorros" },
               ]}
             />
           </div>
@@ -255,7 +256,11 @@ export default function TransaccionesPage() {
                     <td>
                       <span
                         className={`badge ${
-                          t.tipo === "INGRESO" ? "badge-ingreso" : "badge-gasto"
+                          t.tipo === "INGRESO"
+                            ? "badge-ingreso"
+                            : t.tipo === "AHORRO"
+                            ? "badge-ahorro"
+                            : "badge-gasto"
                         }`}
                       >
                         {t.tipo}
@@ -263,21 +268,29 @@ export default function TransaccionesPage() {
                     </td>
                     <td style={{ textTransform: "capitalize" }}>{t.categoria}</td>
                     <td
-                      className={t.tipo === "INGRESO" ? "positivo" : "negativo"}
+                      className={
+                        t.tipo === "INGRESO"
+                          ? "positivo"
+                          : t.tipo === "AHORRO"
+                          ? "ahorro"
+                          : "negativo"
+                      }
                       style={{ fontWeight: 600 }}
                     >
-                      {t.tipo === "INGRESO" ? "+" : "−"}
+                      {t.tipo === "INGRESO" ? "+" : t.tipo === "AHORRO" ? "" : "−"}
                       {dinero(t.monto)}
                     </td>
                     <td>{t.descripcion || "—"}</td>
                     <td>
                       <div className="acciones">
-                        <button
-                          className="btn btn-secundario btn-mini"
-                          onClick={() => editar(t)}
-                        >
-                          Editar
-                        </button>
+                        {t.tipo !== "AHORRO" && (
+                          <button
+                            className="btn btn-secundario btn-mini"
+                            onClick={() => editar(t)}
+                          >
+                            Editar
+                          </button>
+                        )}
                         <button
                           className="btn btn-peligro btn-mini"
                           onClick={() => eliminar(t.id)}

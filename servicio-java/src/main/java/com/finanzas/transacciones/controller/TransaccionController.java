@@ -126,7 +126,8 @@ public class TransaccionController {
     private TransaccionResponse toResponse(Transaccion t) {
         return new TransaccionResponse(
                 t.getId(), t.getUsuarioId(), t.getTipo().name(),
-                t.getMonto(), t.getCategoria(), t.getFecha(), t.getDescripcion());
+                t.getMonto(), t.getCategoria(), t.getFecha(), t.getDescripcion(),
+                t.getMetaId(), t.getAporteId());
     }
 
     private YearMonth parseMes(String mes) {

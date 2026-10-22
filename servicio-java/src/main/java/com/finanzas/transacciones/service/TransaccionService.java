@@ -49,6 +49,40 @@ public class TransaccionService {
         return transaccionRepository.save(t);
     }
 
+    /**
+     * Crea una transacción AHORRO a partir de un evento de aporte. Es
+     * idempotente: si ya existe una transacción con ese aporteId, no hace
+     * nada. El monto puede ser negativo (retiro).
+     */
+    @Transactional
+    public void aplicarAporte(UUID usuarioId, UUID metaId, UUID aporteId,
+                              BigDecimal monto, LocalDate fecha, String categoria) {
+        if (aporteId != null && transaccionRepository.existsByAporteId(aporteId)) {
+            return;
+        }
+        Transaccion t = new Transaccion();
+        t.setUsuarioId(usuarioId);
+        t.setTipo(TipoTransaccion.AHORRO);
+        t.setMonto(monto);
+        t.setCategoria(categoria == null || categoria.isBlank() ? "ahorro" : categoria.trim().toLowerCase());
+        t.setFecha(fecha == null ? LocalDate.now() : fecha);
+        t.setDescripcion("Aporte a meta");
+        t.setMetaId(metaId);
+        t.setAporteId(aporteId);
+        try {
+            transaccionRepository.save(t);
+        } catch (Exception ex) {
+            // Condición de carrera: otro hilo ya insertó con el mismo aporteId (UNIQUE).
+            // La idempotencia se garantiza por el índice único; ignorar el fallo.
+        }
+    }
+
+    @Transactional
+    public void aplicarRetiro(UUID usuarioId, UUID metaId, UUID aporteId,
+                              BigDecimal monto, LocalDate fecha, String categoria) {
+        aplicarAporte(usuarioId, metaId, aporteId, monto.negate(), fecha, categoria);
+    }
+
     public List<Transaccion> listar(UUID usuarioId, YearMonth mes,
                                     TipoTransaccion tipo, String categoria) {
         LocalDate inicio = mes != null ? mes.atDay(1) : null;
@@ -153,7 +187,13 @@ public class TransaccionService {
                 usuarioId, mes.atDay(1), mes.atEndOfMonth());
         BigDecimal gastos = transaccionRepository.sumGastosPorUsuario(
                 usuarioId, mes.atDay(1), mes.atEndOfMonth());
-        return new ResumenMesResponse(ingresos, gastos, ingresos.subtract(gastos), mes.toString());
+        BigDecimal totalAhorro = transaccionRepository.sumAhorrosPorUsuario(
+                usuarioId, mes.atDay(1), mes.atEndOfMonth());
+        BigDecimal balance = ingresos.subtract(gastos);
+        // El balance no cambia: ingresos - gastos. "disponible" = lo que queda
+        // sin estar comprometido en metas (balance - lo apartado en metas).
+        BigDecimal disponible = balance.subtract(totalAhorro);
+        return new ResumenMesResponse(ingresos, gastos, balance, totalAhorro, disponible, mes.toString());
     }
 
     /**

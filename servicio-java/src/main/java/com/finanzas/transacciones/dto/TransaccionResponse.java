@@ -11,5 +11,7 @@ public record TransaccionResponse(
         BigDecimal monto,
         String categoria,
         LocalDate fecha,
-        String descripcion
+        String descripcion,
+        UUID metaId,
+        UUID aporteId
 ) {}

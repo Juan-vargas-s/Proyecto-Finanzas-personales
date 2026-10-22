@@ -3,6 +3,7 @@ package main
 import (
 	"regexp"
 	"strings"
+	"time"
 )
 
 type Meta struct {
@@ -12,6 +13,9 @@ type Meta struct {
 	MontoActual   float64 `json:"montoActual"`
 	FechaLimite   string  `json:"fechaLimite"`
 	CreadaEn      string  `json:"creadaEn"`
+	// Categoria opcional para pintar el icono/color (Fase 3) sin romper
+	// el contrato actual.
+	Categoria string `json:"categoria,omitempty"`
 }
 
 type MetaResponse struct {
@@ -32,20 +36,50 @@ type CrearMetaRequest struct {
 	Nombre        string  `json:"nombre" binding:"required"`
 	MontoObjetivo float64 `json:"montoObjetivo" binding:"required,gt=0"`
 	FechaLimite   string  `json:"fechaLimite" binding:"required,datetime=2006-01-02"`
+	Categoria     string  `json:"categoria"`
+}
+
+type ActualizarMetaRequest struct {
+	Nombre        *string  `json:"nombre"`
+	MontoObjetivo *float64 `json:"montoObjetivo"`
+	FechaLimite   *string  `json:"fechaLimite"`
+	Categoria     *string  `json:"categoria"`
 }
 
 // PresupuestoEstado es el estado de un presupuesto tal como lo devuelve Java:
 // límite definido, gasto acumulado real, restante y porcentaje usado.
 type PresupuestoEstado struct {
+	ID              string  `json:"id"`
 	Categoria       string  `json:"categoria"`
 	LimiteMensual   float64 `json:"limiteMensual"`
 	GastoAcumulado  float64 `json:"gastoAcumulado"`
 	Restante        float64 `json:"restante"`
 	PorcentajeUsado float64 `json:"porcentajeUsado"`
+	Mes             string  `json:"mes"`
 }
 
 type AportarRequest struct {
 	Monto float64 `json:"monto" binding:"required,gt=0"`
+}
+
+type RetirarRequest struct {
+	Monto float64 `json:"monto" binding:"required,gt=0"`
+}
+
+type Aporte struct {
+	ID       string  `json:"id"`
+	Monto    float64 `json:"monto"`
+	Tipo     string  `json:"tipo"`
+	CreadaEn string  `json:"creadaEn"`
+}
+
+type MetaResumen struct {
+	TotalAhorrado   float64 `json:"totalAhorrado"`
+	ObjetivoTotal   float64 `json:"objetivoTotal"`
+	Metas           int     `json:"metas"`
+	Completadas     int     `json:"completadas"`
+	EnRiesgo        int     `json:"enRiesgo"`
+	RitmoPromedio   float64 `json:"ritmoPromedio"`
 }
 
 type VerificarRequest struct {
@@ -73,4 +107,10 @@ func aMetaResponse(m Meta) MetaResponse {
 
 func nombreValido(nombre string) bool {
 	return strings.TrimSpace(nombre) != ""
+}
+
+// fechaValida comprueba que la fecha límite tenga el formato YYYY-MM-DD.
+func fechaValida(fecha string) bool {
+	_, err := time.Parse("2006-01-02", fecha)
+	return err == nil
 }

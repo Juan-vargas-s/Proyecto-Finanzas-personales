@@ -68,8 +68,16 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      # Redis Streams: el servicio consume los eventos de aporte a meta
+      # (publicados por Go) y los materializa como transacciones AHORRO.
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_EVENTOS_STREAM: ${REDIS_EVENTOS_STREAM:-eventos:finanzas}
+      EVENTOS_GROUP_JAVA: ${EVENTOS_GROUP_JAVA:-java}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -105,6 +113,9 @@ services:
       REDIS_URL: ${REDIS_URL}
       JAVA_SERVICE_URL: ${JAVA_SERVICE_URL}
       JWT_SECRET: ${JWT_SECRET}
+      # Redis Streams: Go publica aquí los aportes a meta.
+      REDIS_EVENTOS_STREAM: ${REDIS_EVENTOS_STREAM:-eventos:finanzas}
+      EVENTOS_GROUP_JAVA: ${EVENTOS_GROUP_JAVA:-java}
       PORT: 3002
     depends_on:
       redis:
