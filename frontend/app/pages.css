@@ -88,20 +88,33 @@
   border: 1px solid var(--borde);
   border-radius: 8px;
   color: var(--texto);
-  padding: 0.45rem 0.6rem;
+  padding: 0 0.75rem;
   font-family: inherit;
+  font-size: 0.95rem;
   line-height: 1.25;
+  height: var(--control-alto-sm);
   min-height: var(--control-alto-sm);
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
   color-scheme: dark;
 }
 
 .control-mes .selector {
+  height: var(--control-alto-sm);
   min-height: var(--control-alto-sm);
+  box-sizing: border-box;
 }
 
 .control-mes .campo-busqueda {
-  width: 160px;
+  width: 180px;
   min-width: 0;
+  height: var(--control-alto-sm);
+  min-height: var(--control-alto-sm);
+  padding: 0 0.75rem;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .control-mes .campo-busqueda:focus {

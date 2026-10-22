@@ -271,10 +271,13 @@ a:hover {
   gap: var(--espacio-2);
   flex: 1;
   max-width: 360px;
-  padding: 0.35rem 0.7rem;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 0.75rem;
   background: var(--panel-2);
   border: 1px solid var(--borde);
   border-radius: var(--radio-1);
+  box-sizing: border-box;
   transition: border-color var(--duracion-2) var(--ease-out);
 }
 
@@ -286,11 +289,14 @@ a:hover {
 .buscador input {
   flex: 1;
   min-width: 0;
+  height: 100%;
   background: transparent;
   border: none;
   color: var(--texto);
   font-family: inherit;
   font-size: var(--texto-md);
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .buscador input:focus,
