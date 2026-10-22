@@ -59,6 +59,11 @@ class ResumenMensual(BaseModel):
     totalIngresos: float
     totalGastos: float
     balance: float
+    # Lo apartado en metas (transacciones AHORRO del mes) y el dinero libre
+    # que no está comprometido en metas. Los valores por defecto mantienen
+    # compatibles las entradas de caché generadas antes de existir.
+    totalAhorro: float = 0.0
+    disponible: float = 0.0
 
 
 class GastoCategoria(BaseModel):
@@ -126,6 +131,8 @@ async def reporte_resumen(usuario_id: UUID, mes: str):
         totalIngresos=float(datos["totalIngresos"]),
         totalGastos=float(datos["totalGastos"]),
         balance=float(datos["balance"]),
+        totalAhorro=float(datos.get("totalAhorro") or 0),
+        disponible=float(datos.get("disponible") or 0),
     )
     await cache.guardar(uid, "resumen", respuesta.model_dump(), mes)
     return respuesta

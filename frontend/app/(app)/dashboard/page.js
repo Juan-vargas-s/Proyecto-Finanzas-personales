@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, usuarioId } from "../../../lib/api";
-import { formatear } from "../../../lib/dinero";
+import { formatear, useMoneda } from "../../../lib/dinero";
 import { GraficaPastel, GraficaTendencia } from "../../../components/Graficas";
 import { SelectorMes, mesBonito } from "../../../components/Fechas";
 import { useRecuadro } from "../../../components/Modal";
@@ -12,8 +12,6 @@ function mesActual() {
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const dinero = (v) => formatear(v);
-
 export default function DashboardPage() {
   const [mes, setMes] = useState(mesActual());
   const [resumen, setResumen] = useState(null);
@@ -21,6 +19,9 @@ export default function DashboardPage() {
   const [tendencia, setTendencia] = useState([]);
   const [cargando, setCargando] = useState(true);
   const { recuadro, fallo } = useRecuadro();
+  const moneda = useMoneda();
+
+  const dinero = (v) => formatear(v, moneda);
 
   const uid = usuarioId();
 

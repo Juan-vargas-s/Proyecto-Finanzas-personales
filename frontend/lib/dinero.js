@@ -1,3 +1,6 @@
+"use client";
+
+import { createContext, useContext } from "react";
 import { getUsuario } from "./api";
 
 /** Locale por moneda: define el símbolo y los separadores de miles/decimales. */
@@ -10,6 +13,29 @@ const LOCALES = {
   PEN: "es-PE",
   CLP: "es-CL",
 };
+
+/**
+ * Contexto de la moneda preferida. Lo provee el layout de la app, así el
+ * cambio de moneda redibuja las páginas que ya están montadas (antes solo se
+ * reflejaba al navegar de nuevo).
+ */
+const MonedaContexto = createContext("MXN");
+
+export function MonedaProvider({ moneda, children }) {
+  return (
+    <MonedaContexto.Provider value={moneda || "MXN"}>
+      {children}
+    </MonedaContexto.Provider>
+  );
+}
+
+/**
+ * Moneda preferida del usuario, reactiva. Úsala dentro de componentes para
+ * que el importe se repinte solo cuando el usuario cambia la moneda.
+ */
+export function useMoneda() {
+  return useContext(MonedaContexto);
+}
 
 /** Moneda preferida del usuario (la guarda el servicio de auth en su perfil). */
 export function monedaPreferida() {

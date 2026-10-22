@@ -13,6 +13,7 @@ import {
   usuarioId,
 } from "../../lib/api";
 import { MONEDAS } from "../../lib/monedas";
+import { MonedaProvider } from "../../lib/dinero";
 import Notificaciones from "../../components/Notificaciones";
 import Selector from "../../components/Selector";
 
@@ -87,67 +88,69 @@ export default function AppLayout({ children }) {
   }
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <Link href="/dashboard" className="marca">
-          💰 Finanzas
-        </Link>
-        <nav className="nav">
-          {PAGINAS.map((p) => (
-            <Link
-              key={p.ruta}
-              href={p.ruta}
-              className={pathname === p.ruta ? "activo" : ""}
-            >
-              {p.etiqueta}
-            </Link>
-          ))}
-        </nav>
-        <div className="usuario" ref={menuRef}>
-          <Notificaciones usuarioId={uid} />
-          <button
-            type="button"
-            className={`nombre-usuario${menuAbierto ? " abierto" : ""}`}
-            onClick={() => setMenuAbierto((v) => !v)}
-          >
-            <span aria-hidden="true">👤</span>
-            <span className="nombre-texto">{nombre}</span>
-            <span aria-hidden="true" className="flecha">
-              ▾
-            </span>
-          </button>
-          <button className="btn btn-secundario btn-mini" onClick={salir}>
-            Salir
-          </button>
-
-          {menuAbierto && (
-            <div className="menu-usuario">
-              <div className="menu-seccion">
-                <span className="menu-titulo">Moneda preferida</span>
-                <Selector
-                  id="moneda-preferida"
-                  valor={moneda}
-                  onChange={cambiarMoneda}
-                  placeholder="Seleccionar moneda"
-                  opciones={MONEDAS.map((m) => ({ valor: m, etiqueta: m }))}
-                />
-                {estadoMoneda && (
-                  <span className="menu-aviso">{estadoMoneda}</span>
-                )}
-              </div>
-              <hr className="menu-separador" />
+    <MonedaProvider moneda={moneda}>
+      <div className="app">
+        <header className="topbar">
+          <Link href="/dashboard" className="marca">
+            💰 Finanzas
+          </Link>
+          <nav className="nav">
+            {PAGINAS.map((p) => (
               <Link
-                href="/cambiar-password"
-                className="menu-item"
-                onClick={() => setMenuAbierto(false)}
+                key={p.ruta}
+                href={p.ruta}
+                className={pathname === p.ruta ? "activo" : ""}
               >
-                🔑 Cambiar contraseña
+                {p.etiqueta}
               </Link>
-            </div>
-          )}
-        </div>
-      </header>
-      <main className="contenido">{children}</main>
-    </div>
+            ))}
+          </nav>
+          <div className="usuario" ref={menuRef}>
+            <Notificaciones usuarioId={uid} />
+            <button
+              type="button"
+              className={`nombre-usuario${menuAbierto ? " abierto" : ""}`}
+              onClick={() => setMenuAbierto((v) => !v)}
+            >
+              <span aria-hidden="true">👤</span>
+              <span className="nombre-texto">{nombre}</span>
+              <span aria-hidden="true" className="flecha">
+                ▾
+              </span>
+            </button>
+            <button className="btn btn-secundario btn-mini" onClick={salir}>
+              Salir
+            </button>
+
+            {menuAbierto && (
+              <div className="menu-usuario">
+                <div className="menu-seccion">
+                  <span className="menu-titulo">Moneda preferida</span>
+                  <Selector
+                    id="moneda-preferida"
+                    valor={moneda}
+                    onChange={cambiarMoneda}
+                    placeholder="Seleccionar moneda"
+                    opciones={MONEDAS.map((m) => ({ valor: m, etiqueta: m }))}
+                  />
+                  {estadoMoneda && (
+                    <span className="menu-aviso">{estadoMoneda}</span>
+                  )}
+                </div>
+                <hr className="menu-separador" />
+                <Link
+                  href="/cambiar-password"
+                  className="menu-item"
+                  onClick={() => setMenuAbierto(false)}
+                >
+                  🔑 Cambiar contraseña
+                </Link>
+              </div>
+            )}
+          </div>
+        </header>
+        <main className="contenido">{children}</main>
+      </div>
+    </MonedaProvider>
   );
 }

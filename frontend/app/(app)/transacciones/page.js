@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api } from "../../../lib/api";
-import { formatear } from "../../../lib/dinero";
+import { api, usuarioId } from "../../../lib/api";
+import { formatear, useMoneda } from "../../../lib/dinero";
 import { ModalConfirmacion, useRecuadro } from "../../../components/Modal";
 import Selector from "../../../components/Selector";
+import AsignarMetaModal from "../../../components/AsignarMetaModal";
 import { SelectorFecha, SelectorMes, fechaBonita, mesBonito } from "../../../components/Fechas";
 
 const CATEGORIAS = [
@@ -42,9 +43,9 @@ function formVacio() {
   };
 }
 
-const dinero = (v) => formatear(v);
-
 export default function TransaccionesPage() {
+  const uid = usuarioId();
+  const moneda = useMoneda();
   const [mes, setMes] = useState(mesActual());
   const [transacciones, setTransacciones] = useState([]);
   const [presupuestos, setPresupuestos] = useState([]);
@@ -59,6 +60,10 @@ export default function TransaccionesPage() {
   });
   const [cargando, setCargando] = useState(true);
   const [porEliminar, setPorEliminar] = useState(null);
+  const [asignando, setAsignando] = useState(false);
+  const [metas, setMetas] = useState([]);
+  const [montoIngreso, setMontoIngreso] = useState(0);
+  const [guardandoAsignacion, setGuardandoAsignacion] = useState(false);
   const { recuadro, exito, fallo, aviso, limpiar } = useRecuadro();
 
   const cargar = useCallback(async (mesSel) => {
@@ -159,6 +164,66 @@ export default function TransaccionesPage() {
     limpiar();
   }
 
+  /** Abre el reparto del ingreso entre las metas de ahorro. */
+  async function abrirAsignacion() {
+    limpiar();
+    const monto = parseFloat(form.monto);
+    if (!monto || monto <= 0) {
+      fallo("Monto inválido", "Ingresa el monto del ingreso que quieres repartir.");
+      return;
+    }
+    if (!form.categoria.trim()) {
+      fallo("Falta la categoría", "Elige la categoría del ingreso antes de repartirlo.");
+      return;
+    }
+    try {
+      const lista = await api(`/api/metas?usuarioId=${uid}`);
+      setMetas(Array.isArray(lista) ? lista : []);
+      setMontoIngreso(monto);
+      setAsignando(true);
+    } catch (err) {
+      fallo("No se pudieron cargar las metas", err.message);
+    }
+  }
+
+  /**
+   * Registra el ingreso y reparte el monto entre las metas. Cada reparto es
+   * un aporte: genera el evento que Java materializa como transacción AHORRO.
+   */
+  async function confirmarAsignacion(reparto) {
+    setGuardandoAsignacion(true);
+    limpiar();
+    try {
+      await api("/api/transacciones/", {
+        method: "POST",
+        body: {
+          tipo: "INGRESO",
+          monto: parseFloat(form.monto),
+          categoria: form.categoria.trim(),
+          fecha: form.fecha,
+          descripcion: form.descripcion.trim() || null,
+        },
+      });
+      for (const parte of reparto) {
+        await api(`/api/metas/${parte.id}/aportar`, {
+          method: "PUT",
+          body: { monto: parte.monto },
+        });
+      }
+      setAsignando(false);
+      setForm(formVacio());
+      exito(
+        "Ingreso asignado",
+        `Se registró el ingreso y se repartieron ${reparto.length} aporte(s) a tus metas.`
+      );
+      await cargar(mes);
+    } catch (err) {
+      fallo("No se pudo asignar el ingreso", err.message);
+    } finally {
+      setGuardandoAsignacion(false);
+    }
+  }
+
   async function eliminar(id) {
     setPorEliminar(id);
   }
@@ -197,6 +262,8 @@ export default function TransaccionesPage() {
   }
 
   const visibles = transacciones.filter((t) => !filtro || t.tipo === filtro);
+
+  const dinero = (v) => formatear(v, moneda);
 
   return (
     <>
@@ -379,6 +446,15 @@ export default function TransaccionesPage() {
               <button className="btn" type="submit">
                 {editando ? "Guardar cambios" : "Registrar"}
               </button>
+              {!editando && form.tipo === "INGRESO" && (
+                <button
+                  className="btn btn-exito"
+                  type="button"
+                  onClick={abrirAsignacion}
+                >
+                  🎯 Asignar a meta
+                </button>
+              )}
               {editando && (
                 <button
                   className="btn btn-secundario"
@@ -389,6 +465,12 @@ export default function TransaccionesPage() {
                 </button>
               )}
             </div>
+            {!editando && form.tipo === "INGRESO" && (
+              <p className="form-nota">
+                “Asignar a meta” registra el ingreso y reparte el monto entre tus
+                metas de ahorro: el dinero deja de ser un cubo aislado.
+              </p>
+            )}
           </form>
         </section>
 
@@ -469,6 +551,15 @@ export default function TransaccionesPage() {
           </div>
         </section>
       </div>
+
+      <AsignarMetaModal
+        visible={asignando}
+        total={montoIngreso}
+        metas={metas}
+        guardando={guardandoAsignacion}
+        onCerrar={() => setAsignando(false)}
+        onAsignar={confirmarAsignacion}
+      />
 
       <ModalConfirmacion
         visible={porEliminar !== null}

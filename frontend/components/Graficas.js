@@ -13,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatear, formatearCorto } from "../lib/dinero";
+import { formatear, formatearCorto, useMoneda } from "../lib/dinero";
 
 const COLORES = [
   "#38bdf8",
@@ -36,10 +36,10 @@ const estiloTooltip = {
 };
 
 // El tooltip y la leyenda usan la moneda preferida del usuario.
-const dinero = (v) => formatear(v);
-const dineroCorto = (v) => formatearCorto(v);
-
 export function GraficaPastel({ categorias }) {
+  const moneda = useMoneda();
+  const dinero = (v) => formatear(v, moneda);
+
   if (!categorias || categorias.length === 0) {
     return <p className="vacio">Sin gastos registrados este mes</p>;
   }
@@ -101,6 +101,10 @@ export function GraficaPastel({ categorias }) {
 }
 
 export function GraficaTendencia({ meses }) {
+  const moneda = useMoneda();
+  const dinero = (v) => formatear(v, moneda);
+  const dineroCorto = (v) => formatearCorto(v, moneda);
+
   if (!meses || meses.length === 0) {
     return <p className="vacio">Sin datos de tendencia</p>;
   }

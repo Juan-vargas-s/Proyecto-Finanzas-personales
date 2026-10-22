@@ -104,6 +104,10 @@ func (s *RedisStore) ListarMetas(ctx context.Context, usuarioID string) ([]Meta,
 	for id := range res {
 		ids = append(ids, id)
 	}
+	// Sin metas no hay nada que leer: HMGet sin campos es un error en Redis.
+	if len(ids) == 0 {
+		return []Meta{}, nil
+	}
 	// Los montos viven aparte: una sola consulta para todas las metas.
 	montos, err := s.rdb.HMGet(ctx, s.claveMetaMontos(usuarioID), ids...).Result()
 	if err != nil {
