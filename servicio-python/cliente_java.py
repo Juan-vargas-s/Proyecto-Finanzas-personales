@@ -3,12 +3,19 @@
 El cliente se crea una sola vez (en el lifespan de FastAPI) y se reutiliza en
 todas las peticiones. Antes se abría y cerraba una conexión TCP nueva en cada
 llamada, lo que multiplicaba el coste de pedir datos a Java.
+
+Cada llamada viaja con un JWT de servicio ("svc": true) firmado con el mismo
+JWT_SECRET: Java exige ese token cuando se pasa ?usuarioId=..., de modo que un
+cliente externo no puede leer datos de otro usuario (IDOR).
 """
 
 import os
+from uuid import uuid4
 
 import httpx
 from fastapi import HTTPException
+
+from auth import token_servicio
 
 JAVA_SERVICE_URL = os.getenv("JAVA_SERVICE_URL", "http://servicio-java:8080").rstrip("/")
 
@@ -28,8 +35,14 @@ async def _get(path: str, params: dict) -> dict | list:
             status_code=503,
             detail="El cliente HTTP no está inicializado",
         )
+    uid = params.get("usuarioId")
+    headers = {"X-Request-Id": str(uuid4())}
+    if uid:
+        headers["Authorization"] = f"Bearer {token_servicio(str(uid))}"
     try:
-        respuesta = await _cliente.get(f"{JAVA_SERVICE_URL}{path}", params=params)
+        respuesta = await _cliente.get(
+            f"{JAVA_SERVICE_URL}{path}", params=params, headers=headers
+        )
     except httpx.TimeoutException as exc:
         raise HTTPException(
             status_code=503,

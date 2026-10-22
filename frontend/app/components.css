@@ -172,6 +172,8 @@
   padding: 0.6rem 0.75rem;
   font-size: 0.95rem;
   font-family: inherit;
+  line-height: 1.25;
+  min-height: var(--control-alto);
   width: 100%;
 }
 
@@ -493,13 +495,15 @@
   justify-content: space-between;
   gap: 0.6rem;
   width: 100%;
+  min-height: var(--control-alto);
   background: var(--panel-2);
   border: 1px solid var(--borde);
   border-radius: 9px;
   color: var(--texto);
-  padding: 0.6rem 0.75rem;
+  padding: 0 0.75rem;
   font-size: 0.95rem;
   font-family: inherit;
+  line-height: 1.25;
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
@@ -509,6 +513,14 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selector .selector-texto > span:last-child {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -539,11 +551,12 @@
 }
 
 .selector-menu {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  left: 0;
-  right: 0;
-  z-index: 70;
+  position: fixed;
+  top: auto;
+  left: auto;
+  right: auto;
+  width: auto;
+  z-index: 1000;
   margin: 0;
   padding: 0.35rem;
   list-style: none;
@@ -551,8 +564,9 @@
   border: 1px solid var(--borde);
   border-radius: 12px;
   box-shadow: 0 20px 44px rgba(0, 0, 0, 0.5);
-  max-height: 260px;
+  max-height: none;
   overflow-y: auto;
+  overscroll-behavior: contain;
   animation: panel-aparecer 0.16s ease;
 }
 
@@ -597,16 +611,18 @@
 
 /* Calendario (fecha y mes) */
 .calendario {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  left: 0;
-  z-index: 70;
-  width: 282px;
+  position: fixed;
+  top: auto;
+  left: auto;
+  z-index: 1000;
+  width: auto;
   padding: 0.8rem;
   background: linear-gradient(165deg, var(--panel-2), var(--panel));
   border: 1px solid var(--borde);
   border-radius: 14px;
   box-shadow: 0 22px 48px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   animation: panel-aparecer 0.16s ease;
 }
 

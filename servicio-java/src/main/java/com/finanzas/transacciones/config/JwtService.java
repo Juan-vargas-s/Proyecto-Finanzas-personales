@@ -18,17 +18,29 @@ public class JwtService {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
+    /** Datos útiles del JWT: el usuario y si el token es de servicio. */
+    public record TokenJwt(UUID usuarioId, boolean servicio) {}
+
     /**
-     * Verifica la firma del JWT y extrae el usuarioId.
+     * Verifica la firma del JWT y extrae sus datos.
      * Node firma con el claim personalizado "usuarioId" (no "sub").
+     * Los servicios internos (Python/Go) añaden "svc": true para poder
+     * consultar a Java con ?usuarioId=... sin hacerse pasar por un usuario.
      * Lanza una excepción si el token es inválido o está expirado.
      */
-    public UUID extraerUsuarioId(String token) {
+    public TokenJwt extraer(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-        return UUID.fromString(claims.get("usuarioId", String.class));
+        UUID usuarioId = UUID.fromString(claims.get("usuarioId", String.class));
+        Object svc = claims.get("svc");
+        boolean servicio = Boolean.TRUE.equals(svc) || "true".equals(String.valueOf(svc));
+        return new TokenJwt(usuarioId, servicio);
+    }
+
+    public UUID extraerUsuarioId(String token) {
+        return extraer(token).usuarioId();
     }
 }

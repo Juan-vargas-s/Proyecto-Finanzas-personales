@@ -110,6 +110,10 @@
   /* ---- Layout ---- */
   --sidebar-ancho: 220px;
   --topbar-alto: 60px;
+  /* Altura común de inputs y selectores: evita que el selector de categoría
+     (con emoji) quede más alto que el resto de campos del formulario. */
+  --control-alto: 2.65rem;
+  --control-alto-sm: 2.3rem;
 
   color-scheme: dark;
 }

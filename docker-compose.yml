@@ -99,6 +99,8 @@ services:
     build: ./servicio-python
     environment:
       JAVA_SERVICE_URL: ${JAVA_SERVICE_URL}
+      # Valida los JWT del frontend y firma los JWT de servicio hacia Java.
+      JWT_SECRET: ${JWT_SECRET}
       REDIS_URL: ${REDIS_URL}
       # Redis Streams: invalida la caché de reportes cuando hay un aporte.
       REDIS_EVENTOS_STREAM: ${REDIS_EVENTOS_STREAM:-eventos:finanzas}

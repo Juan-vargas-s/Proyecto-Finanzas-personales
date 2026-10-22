@@ -43,13 +43,9 @@ func registrarRutas(r *gin.Engine, store *RedisStore, eventos *PublicadorEventos
 			c.JSON(http.StatusCreated, aMetaResponse(m))
 		})
 
-		api.GET("", func(c *gin.Context) {
-			uid, ok := uidOPcional(c)
-			if !ok {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token JWT inválido o ausente (o envía usuarioId en query)"})
-				return
-			}
-			metas, err := store.ListarMetas(c.Request.Context(), uid)
+		api.GET("", authRequerido(), func(c *gin.Context) {
+			uid, _ := c.Get("usuarioId")
+			metas, err := store.ListarMetas(c.Request.Context(), uid.(string))
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al listar metas"})
 				return
@@ -214,14 +210,10 @@ func registrarRutas(r *gin.Engine, store *RedisStore, eventos *PublicadorEventos
 		})
 
 		// Historial de aportes y retiros de una meta.
-		api.GET("/:id/aportes", func(c *gin.Context) {
+		api.GET("/:id/aportes", authRequerido(), func(c *gin.Context) {
 			id := c.Param("id")
-			uid, ok := uidOPcional(c)
-			if !ok {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token JWT inválido o ausente (o envía usuarioId en query)"})
-				return
-			}
-			aportes, err := store.ListarAportes(c.Request.Context(), uid, id)
+			uid, _ := c.Get("usuarioId")
+			aportes, err := store.ListarAportes(c.Request.Context(), uid.(string), id)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al listar aportes"})
 				return
@@ -230,13 +222,9 @@ func registrarRutas(r *gin.Engine, store *RedisStore, eventos *PublicadorEventos
 		})
 
 		// Resumen de ahorro: totales, metas completadas y ritmo.
-		api.GET("/resumen", func(c *gin.Context) {
-			uid, ok := uidOPcional(c)
-			if !ok {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token JWT inválido o ausente (o envía usuarioId en query)"})
-				return
-			}
-			metas, err := store.ListarMetas(c.Request.Context(), uid)
+		api.GET("/resumen", authRequerido(), func(c *gin.Context) {
+			uid, _ := c.Get("usuarioId")
+			metas, err := store.ListarMetas(c.Request.Context(), uid.(string))
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al listar metas"})
 				return
@@ -264,21 +252,10 @@ func registrarRutas(r *gin.Engine, store *RedisStore, eventos *PublicadorEventos
 			c.Status(http.StatusNoContent)
 		})
 
-		api.POST("/verificar", func(c *gin.Context) {
-			uid, ok := uidOPcional(c)
-			if !ok {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token JWT inválido o ausente (o envía usuarioId en query)"})
-				return
-			}
-			// Inyectar UID si viene por body vacío
-			var body map[string]string
-			if c.Request.ContentLength > 0 {
-				c.ShouldBind(&body)
-			}
-			_ = body
-			c.Set("usuarioId", uid)
-			// Reutilizar lógica: pasar por handler
-			verificarPresupuestosHandler(c, store, hub, eventos, uid)
+		api.POST("/verificar", authRequerido(), func(c *gin.Context) {
+			uid, _ := c.Get("usuarioId")
+			usuarioID := uid.(string)
+			verificarPresupuestosHandler(c, store, hub, eventos, usuarioID)
 		})
 
 		// Flujo de alertas en vivo (Server-Sent Events). El token llega en la
@@ -336,10 +313,15 @@ func registrarRutas(r *gin.Engine, store *RedisStore, eventos *PublicadorEventos
 			}
 		})
 
-		api.GET("/notificaciones/:usuarioId", func(c *gin.Context) {
+		api.GET("/notificaciones/:usuarioId", authRequerido(), func(c *gin.Context) {
+			uid, _ := c.Get("usuarioId")
 			usuarioID := c.Param("usuarioId")
 			if usuarioID == "" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "usuarioId requerido"})
+				return
+			}
+			if usuarioID != uid.(string) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "No puedes consultar notificaciones de otro usuario"})
 				return
 			}
 			list, err := store.ListarNotificaciones(c.Request.Context(), usuarioID)
@@ -350,11 +332,14 @@ func registrarRutas(r *gin.Engine, store *RedisStore, eventos *PublicadorEventos
 			c.JSON(http.StatusOK, list)
 		})
 
-		api.PUT("/notificaciones/:id/leer", func(c *gin.Context) {
+		api.PUT("/notificaciones/:id/leer", authRequerido(), func(c *gin.Context) {
 			id := c.Param("id")
+			uid, _ := c.Get("usuarioId")
 			usuarioID := c.Query("usuarioId")
 			if usuarioID == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "usuarioId requerido en query"})
+				usuarioID = uid.(string)
+			} else if usuarioID != uid.(string) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "No puedes modificar notificaciones de otro usuario"})
 				return
 			}
 			n, err := store.MarcarLeida(c.Request.Context(), usuarioID, id)

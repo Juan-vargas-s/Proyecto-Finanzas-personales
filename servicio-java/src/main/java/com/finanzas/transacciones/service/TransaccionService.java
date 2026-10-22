@@ -5,7 +5,6 @@ import com.finanzas.transacciones.dto.PresupuestoRequest;
 import com.finanzas.transacciones.dto.ResumenMesResponse;
 import com.finanzas.transacciones.dto.TendenciaMesResponse;
 import com.finanzas.transacciones.dto.TransaccionRequest;
-import com.finanzas.transacciones.dto.TransaccionResponse;
 import com.finanzas.transacciones.model.Presupuesto;
 import com.finanzas.transacciones.model.TipoTransaccion;
 import com.finanzas.transacciones.model.Transaccion;

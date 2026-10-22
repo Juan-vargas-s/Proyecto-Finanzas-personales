@@ -1,5 +1,6 @@
 package com.finanzas.transacciones.controller;
 
+import com.finanzas.transacciones.config.UsuarioResolver;
 import com.finanzas.transacciones.dto.TendenciaMesResponse;
 import com.finanzas.transacciones.dto.TransaccionRequest;
 import com.finanzas.transacciones.dto.TransaccionResponse;
@@ -31,16 +32,18 @@ import org.springframework.web.server.ResponseStatusException;
 public class TransaccionController {
 
     private final TransaccionService service;
+    private final UsuarioResolver usuarioResolver;
 
-    public TransaccionController(TransaccionService service) {
+    public TransaccionController(TransaccionService service, UsuarioResolver usuarioResolver) {
         this.service = service;
+        this.usuarioResolver = usuarioResolver;
     }
 
     @PostMapping({ "", "/" })
     public ResponseEntity<TransaccionResponse> crear(
             HttpServletRequest request,
             @Valid @RequestBody TransaccionRequest req) {
-        Transaccion t = service.crear(usuarioIdRequerido(request), req);
+        Transaccion t = service.crear(usuarioResolver.requerido(request), req);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(t));
     }
 
@@ -56,7 +59,7 @@ public class TransaccionController {
             @RequestParam(required = false) String mes,
             @RequestParam(required = false) TipoTransaccion tipo,
             @RequestParam(required = false) String categoria) {
-        UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
+        UUID uid = usuarioResolver.resolver(request, usuarioId);
         return service.listar(uid, parseMes(mes), tipo, categoria).stream()
                 .map(this::toResponse)
                 .toList();
@@ -72,7 +75,7 @@ public class TransaccionController {
             HttpServletRequest request,
             @RequestParam(required = false) UUID usuarioId,
             @RequestParam String meses) {
-        UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
+        UUID uid = usuarioResolver.resolver(request, usuarioId);
         List<YearMonth> lista = Arrays.stream(meses.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
@@ -86,7 +89,7 @@ public class TransaccionController {
             HttpServletRequest request,
             @RequestParam(required = false) UUID usuarioId,
             @PathVariable UUID id) {
-        UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
+        UUID uid = usuarioResolver.resolver(request, usuarioId);
         return service.obtener(uid, id)
                 .map(this::toResponse)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -98,7 +101,7 @@ public class TransaccionController {
             HttpServletRequest request,
             @PathVariable UUID id,
             @Valid @RequestBody TransaccionRequest req) {
-        return service.actualizar(usuarioIdRequerido(request), id, req)
+        return service.actualizar(usuarioResolver.requerido(request), id, req)
                 .map(this::toResponse)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Transacción no encontrada"));
@@ -108,19 +111,10 @@ public class TransaccionController {
     public ResponseEntity<Void> eliminar(
             HttpServletRequest request,
             @PathVariable UUID id) {
-        if (!service.eliminar(usuarioIdRequerido(request), id)) {
+        if (!service.eliminar(usuarioResolver.requerido(request), id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Transacción no encontrada");
         }
         return ResponseEntity.noContent().build();
-    }
-
-    private UUID usuarioIdRequerido(HttpServletRequest request) {
-        Object attr = request.getAttribute("usuarioId");
-        if (attr == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                    "Token JWT inválido o ausente");
-        }
-        return (UUID) attr;
     }
 
     private TransaccionResponse toResponse(Transaccion t) {

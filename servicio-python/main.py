@@ -1,16 +1,17 @@
 import re
 from contextlib import asynccontextmanager
 from datetime import date
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 import logging
 import redis.asyncio as redis
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+import auth
 import cache
 import consumidor
 from cliente_java import (
@@ -56,7 +57,19 @@ app.add_middleware(
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-Id"],
 )
+
+
+@app.middleware("http")
+async def request_id(request: Request, call_next):
+    """Reutiliza el X-Request-Id entrante (o crea uno) y lo devuelve."""
+    rid = request.headers.get("X-Request-Id") or str(uuid4())
+    request.state.request_id = rid
+    response = await call_next(request)
+    response.headers["X-Request-Id"] = rid
+    return response
+
 
 PATRON_MES = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
@@ -123,7 +136,11 @@ async def health():
     return {"status": "ok", "service": "reportes"}
 
 
-@app.get("/api/reportes/resumen/{usuario_id}", response_model=ResumenMensual)
+@app.get(
+    "/api/reportes/resumen/{usuario_id}",
+    response_model=ResumenMensual,
+    dependencies=[Depends(auth.usuario_autenticado)],
+)
 async def reporte_resumen(usuario_id: UUID, mes: str):
     _validar_mes(mes)
     uid = str(usuario_id)
@@ -146,7 +163,11 @@ async def reporte_resumen(usuario_id: UUID, mes: str):
     return respuesta
 
 
-@app.get("/api/reportes/categorias/{usuario_id}", response_model=ReporteCategorias)
+@app.get(
+    "/api/reportes/categorias/{usuario_id}",
+    response_model=ReporteCategorias,
+    dependencies=[Depends(auth.usuario_autenticado)],
+)
 async def reporte_categorias(usuario_id: UUID, mes: str):
     _validar_mes(mes)
     uid = str(usuario_id)
@@ -181,7 +202,11 @@ async def reporte_categorias(usuario_id: UUID, mes: str):
     return respuesta
 
 
-@app.get("/api/reportes/tendencia/{usuario_id}", response_model=ReporteTendencia)
+@app.get(
+    "/api/reportes/tendencia/{usuario_id}",
+    response_model=ReporteTendencia,
+    dependencies=[Depends(auth.usuario_autenticado)],
+)
 async def reporte_tendencia(usuario_id: UUID):
     uid = str(usuario_id)
     meses = _ultimos_meses(6)

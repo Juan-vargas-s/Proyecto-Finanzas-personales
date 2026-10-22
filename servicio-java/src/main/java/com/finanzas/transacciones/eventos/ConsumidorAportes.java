@@ -1,6 +1,5 @@
 package com.finanzas.transacciones.eventos;
 
-import com.finanzas.transacciones.config.MigracionEsquema;
 import com.finanzas.transacciones.service.TransaccionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -28,6 +27,7 @@ import org.springframework.stereotype.Component;
 @Component
 @EnableScheduling
 @DependsOn("migracionEsquema")
+@SuppressWarnings("unchecked")
 public class ConsumidorAportes {
 
     private static final Logger log = LoggerFactory.getLogger(ConsumidorAportes.class);

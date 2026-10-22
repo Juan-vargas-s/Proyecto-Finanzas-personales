@@ -47,6 +47,7 @@ func main() {
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
+	r.Use(requestID())
 
 	// CORS: el frontend (Next.js) llama a este servicio vía el API Gateway
 	// desde otro origen (puerto 3000), por lo que hay que responder los
@@ -59,7 +60,8 @@ func main() {
 		c.Header("Access-Control-Allow-Origin", origen)
 		c.Header("Vary", "Origin")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-Id")
+		c.Header("Access-Control-Expose-Headers", "X-Request-Id")
 		c.Header("Access-Control-Max-Age", "600")
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)

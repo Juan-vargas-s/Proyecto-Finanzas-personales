@@ -1,5 +1,6 @@
 package com.finanzas.transacciones.controller;
 
+import com.finanzas.transacciones.config.UsuarioResolver;
 import com.finanzas.transacciones.dto.PresupuestoEstadoResponse;
 import com.finanzas.transacciones.dto.PresupuestoRequest;
 import com.finanzas.transacciones.dto.ResumenMesResponse;
@@ -30,16 +31,18 @@ import org.springframework.web.server.ResponseStatusException;
 public class PresupuestoController {
 
     private final TransaccionService service;
+    private final UsuarioResolver usuarioResolver;
 
-    public PresupuestoController(TransaccionService service) {
+    public PresupuestoController(TransaccionService service, UsuarioResolver usuarioResolver) {
         this.service = service;
+        this.usuarioResolver = usuarioResolver;
     }
 
     @PostMapping("/presupuestos")
     public ResponseEntity<PresupuestoResponse> guardarPresupuesto(
             HttpServletRequest request,
             @Valid @RequestBody PresupuestoRequest req) {
-        Presupuesto p = service.guardarPresupuesto(usuarioIdRequerido(request), req);
+        Presupuesto p = service.guardarPresupuesto(usuarioResolver.requerido(request), req);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(p));
     }
 
@@ -48,7 +51,7 @@ public class PresupuestoController {
             HttpServletRequest request,
             @RequestParam(required = false) UUID usuarioId,
             @RequestParam String mes) {
-        UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
+        UUID uid = usuarioResolver.resolver(request, usuarioId);
         return service.listarPresupuestos(uid, parseMes(mes)).stream()
                 .map(this::toResponse)
                 .toList();
@@ -63,7 +66,7 @@ public class PresupuestoController {
             HttpServletRequest request,
             @RequestParam(required = false) UUID usuarioId,
             @RequestParam String mes) {
-        UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
+        UUID uid = usuarioResolver.resolver(request, usuarioId);
         return service.estadosPresupuestos(uid, parseMes(mes));
     }
 
@@ -77,7 +80,7 @@ public class PresupuestoController {
             @RequestParam(required = false) UUID usuarioId,
             @PathVariable String categoria,
             @RequestParam String mes) {
-        UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
+        UUID uid = usuarioResolver.resolver(request, usuarioId);
         return service.estadoPresupuesto(uid, categoria, parseMes(mes))
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "No existe presupuesto para esa categoría y mes"));
@@ -89,7 +92,7 @@ public class PresupuestoController {
             HttpServletRequest request,
             @PathVariable UUID id,
             @Valid @RequestBody PresupuestoRequest req) {
-        return service.actualizarPresupuesto(usuarioIdRequerido(request), id, req)
+        return service.actualizarPresupuesto(usuarioResolver.requerido(request), id, req)
                 .map(this::toResponse)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Presupuesto no encontrado"));
@@ -100,7 +103,7 @@ public class PresupuestoController {
     public ResponseEntity<Void> eliminarPresupuesto(
             HttpServletRequest request,
             @PathVariable UUID id) {
-        if (!service.eliminarPresupuesto(usuarioIdRequerido(request), id)) {
+        if (!service.eliminarPresupuesto(usuarioResolver.requerido(request), id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Presupuesto no encontrado");
         }
         return ResponseEntity.noContent().build();
@@ -111,17 +114,8 @@ public class PresupuestoController {
             HttpServletRequest request,
             @RequestParam(required = false) UUID usuarioId,
             @RequestParam String mes) {
-        UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
+        UUID uid = usuarioResolver.resolver(request, usuarioId);
         return service.resumen(uid, parseMes(mes));
-    }
-
-    private UUID usuarioIdRequerido(HttpServletRequest request) {
-        Object attr = request.getAttribute("usuarioId");
-        if (attr == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                    "Token JWT inválido o ausente");
-        }
-        return (UUID) attr;
     }
 
     private PresupuestoResponse toResponse(Presupuesto p) {

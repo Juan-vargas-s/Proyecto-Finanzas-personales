@@ -215,7 +215,7 @@ func evaluarPresupuestosYAlertar(ctx context.Context, store *RedisStore, hub *Hu
 	url := fmt.Sprintf("%s/api/transacciones/presupuestos/estado?usuarioId=%s&mes=%s",
 		urlJava(), usuarioID, mes)
 	var estados []PresupuestoEstado
-	if err := getJSON(ctx, url, &estados); err != nil {
+	if err := getJSON(ctx, url, usuarioID, &estados); err != nil {
 		log.Printf("consumidor: no se pudo consultar el estado de presupuestos: %v", err)
 		return 0, err
 	}

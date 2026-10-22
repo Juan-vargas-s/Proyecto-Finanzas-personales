@@ -5,10 +5,20 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
+
+// esTokenServicio indica si el JWT se emitió para una llamada entre
+// microservicios. Esos tokens sirven para hablar con Java, nunca para
+// autenticar a un usuario en las rutas públicas de este servicio.
+func esTokenServicio(claims jwt.MapClaims) bool {
+	svc, _ := claims["svc"].(bool)
+	return svc
+}
 
 func claimsDeAutorizacion(c *gin.Context) (jwt.MapClaims, error) {
 	header := c.GetHeader("Authorization")
@@ -38,10 +48,10 @@ func claimsDeToken(tokenStr string) (jwt.MapClaims, error) {
 	return claims, nil
 }
 
-// uidDeToken devuelve el usuarioId de un token suelto.
+// uidDeToken devuelve el usuarioId de un token de usuario (no de servicio).
 func uidDeToken(tokenStr string) (string, bool) {
 	claims, err := claimsDeToken(tokenStr)
-	if err != nil {
+	if err != nil || esTokenServicio(claims) {
 		return "", false
 	}
 	usuarioID, ok := claims["usuarioId"].(string)
@@ -58,6 +68,10 @@ func authRequerido() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token JWT inválido o ausente"})
 			return
 		}
+		if esTokenServicio(claims) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Un token de servicio no puede acceder a datos de usuario"})
+			return
+		}
 		usuarioID, ok := claims["usuarioId"].(string)
 		if !ok || usuarioID == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token sin usuarioId"})
@@ -68,14 +82,33 @@ func authRequerido() gin.HandlerFunc {
 	}
 }
 
-func uidOPcional(c *gin.Context) (string, bool) {
-	if uid := c.Query("usuarioId"); uid != "" {
-		return uid, true
+// tokenServicio firma un JWT de corta duración para llamar a Java con
+// ?usuarioId=... Java comprueba el claim "svc" y que el usuarioId coincida.
+func tokenServicio(usuarioID string) (string, error) {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return "", errors.New("JWT_SECRET no configurado")
 	}
-	if claims, err := claimsDeAutorizacion(c); err == nil {
-		if uid, ok := claims["usuarioId"].(string); ok && uid != "" {
-			return uid, true
+	ahora := time.Now()
+	claims := jwt.MapClaims{
+		"usuarioId": usuarioID,
+		"svc":       true,
+		"iat":       ahora.Unix(),
+		"exp":       ahora.Add(60 * time.Second).Unix(),
+	}
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
+}
+
+// requestID reutiliza el X-Request-Id entrante o genera uno nuevo y lo
+// devuelve en la respuesta para poder seguir una petición entre servicios.
+func requestID() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.GetHeader("X-Request-Id")
+		if id == "" || len(id) > 100 {
+			id = uuid.NewString()
 		}
+		c.Set("requestId", id)
+		c.Header("X-Request-Id", id)
+		c.Next()
 	}
-	return "", false
 }

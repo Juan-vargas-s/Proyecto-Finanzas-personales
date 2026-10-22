@@ -5,13 +5,17 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const { z } = require('zod');
+const { randomUUID } = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 const { arrancarConsumidorAlertas } = require('./eventos');
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET no configurado: el servicio de autenticación no puede arrancar sin él');
+}
 
 // ---------- SMTP (obligatorio) ----------
 // El registro de cuentas exige enviar un código por correo, así que SMTP debe
@@ -39,8 +43,17 @@ if (smtpHabilitado) {
   console.warn('SMTP NO configurado: el registro de nuevas cuentas está DESHABILITADO hasta definir SMTP_HOST/EMAIL_FROM');
 }
 
-app.use(cors());
+app.use(cors({ exposedHeaders: ['X-Request-Id'] }));
 app.use(express.json());
+
+// X-Request-Id: se reutiliza el entrante o se genera uno; se devuelve siempre
+// para poder seguir una petición entre el gateway y los microservicios.
+app.use((req, res, next) => {
+  const entrante = req.get('X-Request-Id');
+  req.requestId = entrante && entrante.length <= 100 ? entrante : randomUUID();
+  res.setHeader('X-Request-Id', req.requestId);
+  next();
+});
 
 // ---------- Esquemas de validación ----------
 const registroSchema = z
