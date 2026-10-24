@@ -38,6 +38,21 @@ public class Transaccion {
 
     private String descripcion;
 
+    /**
+     * Meta de ahorro a la que pertenece el movimiento. Nullable porque el
+     * resto de transacciones no están ligadas a ninguna meta. Sin FK: las
+     * metas viven en Redis, no en PostgreSQL.
+     */
+    private UUID metaId;
+
+    /**
+     * Identificador del aporte que originó el movimiento. Es la clave de
+     * idempotencia del consumidor de eventos: al reprocesar un aporte ya
+     * aplicado no se crea una transacción duplicada.
+     */
+    @Column(unique = true)
+    private UUID aporteId;
+
     public UUID getId() {
         return id;
     }
@@ -92,5 +107,21 @@ public class Transaccion {
 
     public void setDescripcion(String descripcion) {
         this.descripcion = descripcion;
+    }
+
+    public UUID getMetaId() {
+        return metaId;
+    }
+
+    public void setMetaId(UUID metaId) {
+        this.metaId = metaId;
+    }
+
+    public UUID getAporteId() {
+        return aporteId;
+    }
+
+    public void setAporteId(UUID aporteId) {
+        this.aporteId = aporteId;
     }
 }

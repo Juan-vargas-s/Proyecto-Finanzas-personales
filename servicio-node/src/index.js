@@ -5,12 +5,17 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const { z } = require('zod');
+const { randomUUID } = require('crypto');
 const { PrismaClient } = require('@prisma/client');
+const { arrancarConsumidorAlertas } = require('./eventos');
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET no configurado: el servicio de autenticación no puede arrancar sin él');
+}
 
 // ---------- SMTP (obligatorio) ----------
 // El registro de cuentas exige enviar un código por correo, así que SMTP debe
@@ -38,8 +43,17 @@ if (smtpHabilitado) {
   console.warn('SMTP NO configurado: el registro de nuevas cuentas está DESHABILITADO hasta definir SMTP_HOST/EMAIL_FROM');
 }
 
-app.use(cors());
+app.use(cors({ exposedHeaders: ['X-Request-Id'] }));
 app.use(express.json());
+
+// X-Request-Id: se reutiliza el entrante o se genera uno; se devuelve siempre
+// para poder seguir una petición entre el gateway y los microservicios.
+app.use((req, res, next) => {
+  const entrante = req.get('X-Request-Id');
+  req.requestId = entrante && entrante.length <= 100 ? entrante : randomUUID();
+  res.setHeader('X-Request-Id', req.requestId);
+  next();
+});
 
 // ---------- Esquemas de validación ----------
 const registroSchema = z
@@ -416,6 +430,27 @@ app.post('/api/auth/reenviar-codigo', async (req, res) => {
   }
 });
 
+let detenerEventos = null;
+
 app.listen(PORT, () => {
   console.log(`Servicio Auth (Node.js) escuchando en el puerto ${PORT}`);
+
+  // Consumidor del bus de eventos: Go publica `alerta.creada` cuando un
+  // presupuesto cruza el 80 % o se excede; aquí se manda el correo.
+  detenerEventos = arrancarConsumidorAlertas({
+    prisma,
+    transporter,
+    smtpHabilitado,
+    emailFrom: EMAIL_FROM,
+  });
 });
+
+async function apagar(senal) {
+  console.log(`Señal ${senal}: cerrando el servicio…`);
+  if (detenerEventos) await detenerEventos();
+  await prisma.$disconnect();
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => apagar('SIGTERM'));
+process.on('SIGINT', () => apagar('SIGINT'));

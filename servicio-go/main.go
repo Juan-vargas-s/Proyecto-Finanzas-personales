@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -22,9 +23,31 @@ func main() {
 	}
 	rdb := redis.NewClient(opts)
 	store := NewRedisStore(rdb)
+	eventos := NewPublicadorEventos(rdb)
+	hub := NuevoHubSSE()
+
+	// El consumidor automático reevalúa los presupuestos cuando Java publica
+	// un movimiento o un cambio de presupuesto, y empuja la alerta al
+	// navegador por SSE (sin que el usuario pulse "Verificar presupuestos").
+	//
+	// Usa un cliente Redis DEDICADO: XReadGroup bloquea el socket durante
+	// segundos y, si compartiera el pool con el path HTTP, lo agotaría.
+	rdbConsumo := redis.NewClient(opts)
+	consumidor := NewConsumidorEventos(rdbConsumo, store, eventos, hub)
+	consumidor.Iniciar(context.Background())
+
+	// El grupo de consumidores de Java se crea desde el productor: así el
+	// consumidor puede arrancar en cualquier momento y leer los eventos
+	// pendientes desde el principio del stream.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := eventos.AsegurarGrupo(ctx, nombreGrupoConsumidorJava()); err != nil {
+		log.Printf("aviso: no se pudo crear el grupo de consumidores: %v", err)
+	}
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
+	r.Use(requestID())
 
 	// CORS: el frontend (Next.js) llama a este servicio vía el API Gateway
 	// desde otro origen (puerto 3000), por lo que hay que responder los
@@ -37,7 +60,8 @@ func main() {
 		c.Header("Access-Control-Allow-Origin", origen)
 		c.Header("Vary", "Origin")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-Id")
+		c.Header("Access-Control-Expose-Headers", "X-Request-Id")
 		c.Header("Access-Control-Max-Age", "600")
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
@@ -65,7 +89,7 @@ func main() {
 		})
 	})
 
-	registrarRutas(r, store)
+	registrarRutas(r, store, eventos, hub)
 
 	port := os.Getenv("PORT")
 	if port == "" {

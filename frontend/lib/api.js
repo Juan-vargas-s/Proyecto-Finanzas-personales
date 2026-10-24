@@ -80,12 +80,14 @@ export function nombreUsuario() {
 
 function mensajeError(datos, status) {
   if (!datos) return `Error ${status}`;
-  if (typeof datos.error === "string") return datos.error;
   if (typeof datos.detail === "string") return datos.detail;
+  // Spring devuelve "error" con el motivo genérico ("Bad Request") y el
+  // detalle útil en "message": se prefiere el segundo.
+  if (typeof datos.message === "string" && datos.message) return datos.message;
+  if (typeof datos.error === "string" && datos.error) return datos.error;
   if (Array.isArray(datos.detail)) {
     return datos.detail.map((d) => d.msg || JSON.stringify(d)).join(", ");
   }
-  if (typeof datos.message === "string" && datos.message) return datos.message;
   return `Error ${status}`;
 }
 

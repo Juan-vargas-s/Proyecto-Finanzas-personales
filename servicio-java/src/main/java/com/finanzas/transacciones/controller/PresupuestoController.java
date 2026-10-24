@@ -1,5 +1,6 @@
 package com.finanzas.transacciones.controller;
 
+import com.finanzas.transacciones.config.UsuarioResolver;
 import com.finanzas.transacciones.dto.PresupuestoEstadoResponse;
 import com.finanzas.transacciones.dto.PresupuestoRequest;
 import com.finanzas.transacciones.dto.ResumenMesResponse;
@@ -14,9 +15,11 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,16 +31,18 @@ import org.springframework.web.server.ResponseStatusException;
 public class PresupuestoController {
 
     private final TransaccionService service;
+    private final UsuarioResolver usuarioResolver;
 
-    public PresupuestoController(TransaccionService service) {
+    public PresupuestoController(TransaccionService service, UsuarioResolver usuarioResolver) {
         this.service = service;
+        this.usuarioResolver = usuarioResolver;
     }
 
     @PostMapping("/presupuestos")
     public ResponseEntity<PresupuestoResponse> guardarPresupuesto(
             HttpServletRequest request,
             @Valid @RequestBody PresupuestoRequest req) {
-        Presupuesto p = service.guardarPresupuesto(usuarioIdRequerido(request), req);
+        Presupuesto p = service.guardarPresupuesto(usuarioResolver.requerido(request), req);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(p));
     }
 
@@ -46,10 +51,23 @@ public class PresupuestoController {
             HttpServletRequest request,
             @RequestParam(required = false) UUID usuarioId,
             @RequestParam String mes) {
-        UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
+        UUID uid = usuarioResolver.resolver(request, usuarioId);
         return service.listarPresupuestos(uid, parseMes(mes)).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    /**
+     * Estado de todos los presupuestos del mes en una sola llamada.
+     * Reemplaza al N+1 de pedir /presupuestos/{categoria} por cada categoría.
+     */
+    @GetMapping("/presupuestos/estado")
+    public List<PresupuestoEstadoResponse> estadosPresupuestos(
+            HttpServletRequest request,
+            @RequestParam(required = false) UUID usuarioId,
+            @RequestParam String mes) {
+        UUID uid = usuarioResolver.resolver(request, usuarioId);
+        return service.estadosPresupuestos(uid, parseMes(mes));
     }
 
     /**
@@ -62,10 +80,33 @@ public class PresupuestoController {
             @RequestParam(required = false) UUID usuarioId,
             @PathVariable String categoria,
             @RequestParam String mes) {
-        UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
+        UUID uid = usuarioResolver.resolver(request, usuarioId);
         return service.estadoPresupuesto(uid, categoria, parseMes(mes))
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "No existe presupuesto para esa categoría y mes"));
+    }
+
+    /** Edita un presupuesto: cambia el límite, la categoría o el mes. */
+    @PutMapping("/presupuestos/{id}")
+    public PresupuestoResponse actualizarPresupuesto(
+            HttpServletRequest request,
+            @PathVariable UUID id,
+            @Valid @RequestBody PresupuestoRequest req) {
+        return service.actualizarPresupuesto(usuarioResolver.requerido(request), id, req)
+                .map(this::toResponse)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Presupuesto no encontrado"));
+    }
+
+    /** Elimina un presupuesto del mes. */
+    @DeleteMapping("/presupuestos/{id}")
+    public ResponseEntity<Void> eliminarPresupuesto(
+            HttpServletRequest request,
+            @PathVariable UUID id) {
+        if (!service.eliminarPresupuesto(usuarioResolver.requerido(request), id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Presupuesto no encontrado");
+        }
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/resumen")
@@ -73,17 +114,8 @@ public class PresupuestoController {
             HttpServletRequest request,
             @RequestParam(required = false) UUID usuarioId,
             @RequestParam String mes) {
-        UUID uid = usuarioId != null ? usuarioId : usuarioIdRequerido(request);
+        UUID uid = usuarioResolver.resolver(request, usuarioId);
         return service.resumen(uid, parseMes(mes));
-    }
-
-    private UUID usuarioIdRequerido(HttpServletRequest request) {
-        Object attr = request.getAttribute("usuarioId");
-        if (attr == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                    "Token JWT inválido o ausente");
-        }
-        return (UUID) attr;
     }
 
     private PresupuestoResponse toResponse(Presupuesto p) {

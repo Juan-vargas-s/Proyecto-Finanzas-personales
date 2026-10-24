@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { useClicFuera } from "../lib/hooks";
+import { useCallback, useState } from "react";
+import { createPortal } from "react-dom";
+import { usePopover } from "../lib/hooks";
 
 const DIAS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 
@@ -70,7 +71,8 @@ export function mesBonito(valor) {
 
 /**
  * Calendario desplegable con el diseño del frontend (reemplaza al
- * input nativo type="date").
+ * input nativo type="date"). El panel se pinta en un portal para que no
+ * quede recortado al final de la página: ver usePopover.
  */
 export function SelectorFecha({ valor, onChange, id, max, min, placeholder = "Seleccionar fecha", className = "" }) {
   const [abierto, setAbierto] = useState(false);
@@ -78,9 +80,8 @@ export function SelectorFecha({ valor, onChange, id, max, min, placeholder = "Se
     const base = valor ? deISO(valor) : new Date();
     return { anio: base.getFullYear(), mes: base.getMonth() };
   });
-  const ref = useRef(null);
   const cerrar = useCallback(() => setAbierto(false), []);
-  useClicFuera(ref, abierto, cerrar);
+  const { refBoton, refMenu, estilo } = usePopover(abierto, cerrar, 380, 282);
 
   function alternar() {
     if (!abierto) {
@@ -112,7 +113,7 @@ export function SelectorFecha({ valor, onChange, id, max, min, placeholder = "Se
   }
 
   return (
-    <div className={`selector-contenedor ${className}`} ref={ref}>
+    <div className={`selector-contenedor ${className}`} ref={refBoton}>
       <button
         type="button"
         id={id}
@@ -129,64 +130,74 @@ export function SelectorFecha({ valor, onChange, id, max, min, placeholder = "Se
         </span>
       </button>
 
-      {abierto && (
-        <div className="calendario" role="dialog" aria-label="Seleccionar fecha">
-          <div className="calendario-head">
-            <button
-              type="button"
-              className="calendario-nav"
-              aria-label="Mes anterior"
-              onClick={() => mover(-1)}
-            >
-              ‹
-            </button>
-            <span className="calendario-titulo">
-              {MESES[mes]} {anio}
-            </span>
-            <button
-              type="button"
-              className="calendario-nav"
-              aria-label="Mes siguiente"
-              onClick={() => mover(1)}
-            >
-              ›
-            </button>
-          </div>
-
-          <div className="calendario-grid">
-            {DIAS.map((d) => (
-              <span key={d} className="calendario-dow">
-                {d}
+      {abierto &&
+        estilo &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={refMenu}
+            className="calendario"
+            style={estilo}
+            role="dialog"
+            aria-label="Seleccionar fecha"
+          >
+            <div className="calendario-head">
+              <button
+                type="button"
+                className="calendario-nav"
+                aria-label="Mes anterior"
+                onClick={() => mover(-1)}
+              >
+                ‹
+              </button>
+              <span className="calendario-titulo">
+                {MESES[mes]} {anio}
               </span>
-            ))}
-            {celdas.map((dia, i) => {
-              if (dia === null) return <span key={`v${i}`} />;
-              const iso = `${anio}-${pad(mes + 1)}-${pad(dia)}`;
-              const deshabilitado =
-                (max && iso > max) || (min && iso < min);
-              const clases = [
-                "calendario-dia",
-                iso === valor ? "seleccionado" : "",
-                iso === hoyISO ? "hoy" : "",
-                deshabilitado ? "deshabilitado" : "",
-              ]
-                .filter(Boolean)
-                .join(" ");
-              return (
-                <button
-                  key={iso}
-                  type="button"
-                  className={clases}
-                  disabled={deshabilitado}
-                  onClick={() => elegir(dia)}
-                >
-                  {dia}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+              <button
+                type="button"
+                className="calendario-nav"
+                aria-label="Mes siguiente"
+                onClick={() => mover(1)}
+              >
+                ›
+              </button>
+            </div>
+
+            <div className="calendario-grid">
+              {DIAS.map((d) => (
+                <span key={d} className="calendario-dow">
+                  {d}
+                </span>
+              ))}
+              {celdas.map((dia, i) => {
+                if (dia === null) return <span key={`v${i}`} />;
+                const iso = `${anio}-${pad(mes + 1)}-${pad(dia)}`;
+                const deshabilitado =
+                  (max && iso > max) || (min && iso < min);
+                const clases = [
+                  "calendario-dia",
+                  iso === valor ? "seleccionado" : "",
+                  iso === hoyISO ? "hoy" : "",
+                  deshabilitado ? "deshabilitado" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+                return (
+                  <button
+                    key={iso}
+                    type="button"
+                    className={clases}
+                    disabled={deshabilitado}
+                    onClick={() => elegir(dia)}
+                  >
+                    {dia}
+                  </button>
+                );
+              })}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
@@ -200,9 +211,8 @@ export function SelectorMes({ valor, onChange, id, placeholder = "Seleccionar me
   const [anio, setAnio] = useState(() =>
     valor ? Number(valor.slice(0, 4)) : new Date().getFullYear()
   );
-  const ref = useRef(null);
   const cerrar = useCallback(() => setAbierto(false), []);
-  useClicFuera(ref, abierto, cerrar);
+  const { refBoton, refMenu, estilo } = usePopover(abierto, cerrar, 340, 282);
 
   function alternar() {
     if (!abierto) {
@@ -212,7 +222,7 @@ export function SelectorMes({ valor, onChange, id, placeholder = "Seleccionar me
   }
 
   return (
-    <div className={`selector-contenedor ${className}`} ref={ref}>
+    <div className={`selector-contenedor ${className}`} ref={refBoton}>
       <button
         type="button"
         id={id}
@@ -229,48 +239,58 @@ export function SelectorMes({ valor, onChange, id, placeholder = "Seleccionar me
         </span>
       </button>
 
-      {abierto && (
-        <div className="calendario calendario-mes" role="dialog" aria-label="Seleccionar mes">
-          <div className="calendario-head">
-            <button
-              type="button"
-              className="calendario-nav"
-              aria-label="Año anterior"
-              onClick={() => setAnio((a) => a - 1)}
-            >
-              ‹
-            </button>
-            <span className="calendario-titulo">{anio}</span>
-            <button
-              type="button"
-              className="calendario-nav"
-              aria-label="Año siguiente"
-              onClick={() => setAnio((a) => a + 1)}
-            >
-              ›
-            </button>
-          </div>
+      {abierto &&
+        estilo &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={refMenu}
+            className="calendario calendario-mes"
+            style={estilo}
+            role="dialog"
+            aria-label="Seleccionar mes"
+          >
+            <div className="calendario-head">
+              <button
+                type="button"
+                className="calendario-nav"
+                aria-label="Año anterior"
+                onClick={() => setAnio((a) => a - 1)}
+              >
+                ‹
+              </button>
+              <span className="calendario-titulo">{anio}</span>
+              <button
+                type="button"
+                className="calendario-nav"
+                aria-label="Año siguiente"
+                onClick={() => setAnio((a) => a + 1)}
+              >
+                ›
+              </button>
+            </div>
 
-          <div className="calendario-meses">
-            {MESES_CORTO.map((m, i) => {
-              const v = `${anio}-${pad(i + 1)}`;
-              return (
-                <button
-                  key={v}
-                  type="button"
-                  className={`calendario-mes-opcion${v === valor ? " activa" : ""}`}
-                  onClick={() => {
-                    onChange(v);
-                    cerrar();
-                  }}
-                >
-                  {m}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+            <div className="calendario-meses">
+              {MESES_CORTO.map((m, i) => {
+                const v = `${anio}-${pad(i + 1)}`;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    className={`calendario-mes-opcion${v === valor ? " activa" : ""}`}
+                    onClick={() => {
+                      onChange(v);
+                      cerrar();
+                    }}
+                  >
+                    {m}
+                  </button>
+                );
+              })}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

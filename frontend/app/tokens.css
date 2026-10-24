@@ -1,0 +1,119 @@
+/* ============================================================
+   Tokens del sistema visual
+   Un solo lugar para color, espacio, tipografía, radios y sombra.
+   Los nombres cortos (--panel, --acento, …) se conservan para no
+   reescribir los componentes que ya los usaban.
+   ============================================================ */
+:root {
+  /* ---- Superficies ---- */
+  --fondo: #0b1220;
+  --panel: #111a2e;
+  --panel-2: #16213a;
+  --panel-2-55: rgba(22, 33, 58, 0.55);
+  --panel-2-60: rgba(22, 33, 58, 0.6);
+  --superficie-1: var(--fondo);
+  --superficie-2: var(--panel);
+  --superficie-3: #1d2b4a;
+  --topbar-fondo: rgba(13, 20, 36, 0.82);
+  --overlay: rgba(4, 9, 20, 0.72);
+  --pista: rgba(255, 255, 255, 0.08);
+  --scroll: #24345a;
+  --scroll-hover: #31456f;
+
+  /* ---- Bordes ---- */
+  --borde: #22304d;
+  --borde-tenue: rgba(34, 48, 77, 0.6);
+  --borde-suave: rgba(34, 48, 77, 0.85);
+
+  /* ---- Texto ---- */
+  --texto: #e6edf7;
+  --texto-2: #93a4c0;
+  --texto-acento: #06263a;
+  --blanco: #ffffff;
+  --fuente-ui: var(--fuente-inter), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* ---- Marca (se conserva el azul del proyecto) ---- */
+  --acento: #38bdf8;
+  --acento-2: #818cf8;
+  --acento-claro: #7dd3fc;
+  --acento-05: rgba(56, 189, 248, 0.07);
+  --acento-10: rgba(56, 189, 248, 0.12);
+  --acento-20: rgba(56, 189, 248, 0.2);
+  --acento-30: rgba(56, 189, 248, 0.3);
+  --acento-50: rgba(56, 189, 248, 0.5);
+  --acento2-10: rgba(129, 140, 248, 0.1);
+  --azul: #60a5fa;
+  --violeta: #a78bfa;
+  --purpura: #c084fc;
+  --rosa: #f472b6;
+  --naranja: #fb923c;
+  --teal: #2dd4bf;
+  --verde-2: #34d399;
+
+  /* ---- Semánticos ---- */
+  --info: var(--acento);
+  --info-soft: var(--acento-10);
+  --exito: #4ade80;
+  --exito-10: rgba(74, 222, 128, 0.14);
+  --exito-20: rgba(74, 222, 128, 0.22);
+  --exito-30: rgba(74, 222, 128, 0.4);
+  --alerta: #facc15;
+  --alerta-10: rgba(250, 204, 21, 0.12);
+  --alerta-20: rgba(250, 204, 21, 0.22);
+  --alerta-30: rgba(250, 204, 21, 0.45);
+  --error: #f87171;
+  --error-fuerte: #ef4444;
+  --error-10: rgba(248, 113, 113, 0.14);
+  --error-20: rgba(248, 113, 113, 0.24);
+  --error-30: rgba(248, 113, 113, 0.45);
+
+  /* ---- Espaciado (escala de 4 px) ---- */
+  --espacio-1: 0.25rem;
+  --espacio-2: 0.5rem;
+  --espacio-3: 0.75rem;
+  --espacio-4: 1rem;
+  --espacio-5: 1.25rem;
+  --espacio-6: 1.5rem;
+  --espacio-8: 2rem;
+  --espacio-10: 2.5rem;
+  --espacio-12: 3rem;
+
+  /* ---- Tipografía ---- */
+  --texto-xs: 0.72rem;
+  --texto-sm: 0.8rem;
+  --texto-base: 0.875rem;
+  --texto-md: 0.95rem;
+  --texto-lg: 1.05rem;
+  --texto-xl: 1.3rem;
+  --texto-2xl: 1.5rem;
+  --texto-3xl: 2rem;
+
+  /* ---- Radios ---- */
+  --radio-1: 8px;
+  --radio-2: 12px;
+  --radio-3: 16px;
+  --radio: 14px;
+
+  /* ---- Movimiento ---- */
+  --duracion-1: 0.12s;
+  --duracion-2: 0.2s;
+  --duracion-3: 0.3s;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --hover-lift: -2px;
+
+  /* ---- Sombras ---- */
+  --sombra-1: 0 10px 26px rgba(0, 0, 0, 0.2);
+  --sombra-2: 0 14px 34px rgba(0, 0, 0, 0.35);
+  --sombra-3: 0 20px 44px rgba(0, 0, 0, 0.5);
+  --sombra: var(--sombra-2);
+
+  /* ---- Layout ---- */
+  --sidebar-ancho: 220px;
+  --topbar-alto: 60px;
+  /* Altura común de inputs y selectores: evita que el selector de categoría
+     (con emoji) quede más alto que el resto de campos del formulario. */
+  --control-alto: 2.65rem;
+  --control-alto-sm: 2.3rem;
+
+  color-scheme: dark;
+}
