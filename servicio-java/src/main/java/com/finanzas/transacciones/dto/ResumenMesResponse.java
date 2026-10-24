@@ -6,5 +6,7 @@ public record ResumenMesResponse(
         BigDecimal totalIngresos,
         BigDecimal totalGastos,
         BigDecimal balance,
+        BigDecimal totalAhorro,
+        BigDecimal disponible,
         String mes
 ) {}

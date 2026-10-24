@@ -45,8 +45,15 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       EMAIL_FROM: ${EMAIL_FROM}
+      # Redis Streams: consume `alerta.creada` (publicado por Go) y manda el
+      # correo de la alerta con el mismo SMTP del registro.
+      REDIS_URL: ${REDIS_URL}
+      REDIS_EVENTOS_STREAM: ${REDIS_EVENTOS_STREAM:-eventos:finanzas}
+      EVENTOS_GROUP_NODE: ${EVENTOS_GROUP_NODE:-node}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
@@ -68,8 +75,16 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      # Redis Streams: el servicio consume los eventos de aporte a meta
+      # (publicados por Go) y los materializa como transacciones AHORRO.
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_EVENTOS_STREAM: ${REDIS_EVENTOS_STREAM:-eventos:finanzas}
+      EVENTOS_GROUP_JAVA: ${EVENTOS_GROUP_JAVA:-java}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -84,8 +99,16 @@ services:
     build: ./servicio-python
     environment:
       JAVA_SERVICE_URL: ${JAVA_SERVICE_URL}
+      # Valida los JWT del frontend y firma los JWT de servicio hacia Java.
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_URL: ${REDIS_URL}
+      # Redis Streams: invalida la caché de reportes cuando hay un aporte.
+      REDIS_EVENTOS_STREAM: ${REDIS_EVENTOS_STREAM:-eventos:finanzas}
+      EVENTOS_GROUP_PYTHON: ${EVENTOS_GROUP_PYTHON:-python}
     depends_on:
       servicio-java:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -102,6 +125,11 @@ services:
       REDIS_URL: ${REDIS_URL}
       JAVA_SERVICE_URL: ${JAVA_SERVICE_URL}
       JWT_SECRET: ${JWT_SECRET}
+      # Redis Streams: Go publica aquí los aportes a meta y consume los
+      # eventos de transacciones/presupuestos que publica Java.
+      REDIS_EVENTOS_STREAM: ${REDIS_EVENTOS_STREAM:-eventos:finanzas}
+      EVENTOS_GROUP_JAVA: ${EVENTOS_GROUP_JAVA:-java}
+      EVENTOS_GROUP_GO: ${EVENTOS_GROUP_GO:-go}
       PORT: 3002
     depends_on:
       redis:

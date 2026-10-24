@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, usuarioId } from "../../../lib/api";
+import { formatear, useMoneda } from "../../../lib/dinero";
 import { GraficaPastel, GraficaTendencia } from "../../../components/Graficas";
+import { EsqueletoGrafica } from "../../../components/Esqueleto";
 import { SelectorMes, mesBonito } from "../../../components/Fechas";
 import { useRecuadro } from "../../../components/Modal";
 
@@ -11,9 +13,6 @@ function mesActual() {
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const dinero = (v) =>
-  `$${Number(v || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
 export default function DashboardPage() {
   const [mes, setMes] = useState(mesActual());
   const [resumen, setResumen] = useState(null);
@@ -21,6 +20,9 @@ export default function DashboardPage() {
   const [tendencia, setTendencia] = useState([]);
   const [cargando, setCargando] = useState(true);
   const { recuadro, fallo } = useRecuadro();
+  const moneda = useMoneda();
+
+  const dinero = (v) => formatear(v, moneda);
 
   const uid = usuarioId();
 
@@ -116,7 +118,7 @@ export default function DashboardPage() {
         <section className="panel">
           <h2>Gastos por categoría · {mesBonito(mes)}</h2>
           {cargando && !resumen ? (
-            <p className="vacio">Cargando…</p>
+            <EsqueletoGrafica />
           ) : (
             <GraficaPastel categorias={categorias} />
           )}
@@ -125,7 +127,7 @@ export default function DashboardPage() {
         <section className="panel">
           <h2>Tendencia de los últimos 6 meses</h2>
           {cargando && tendencia.length === 0 ? (
-            <p className="vacio">Cargando…</p>
+            <EsqueletoGrafica />
           ) : (
             <GraficaTendencia meses={tendencia} />
           )}

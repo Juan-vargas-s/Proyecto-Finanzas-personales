@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
  * Modal genérico con el diseño del frontend (fondo difuminado, panel
  * elevado y animaciones). Se cierra con Escape o clic fuera.
  */
-export function Modal({ visible, titulo, icono, tipo, children, acciones, onCerrar }) {
+export function Modal({ visible, titulo, icono, tipo, children, acciones, onCerrar, ancho }) {
   useEffect(() => {
     if (!visible) return;
     function tecla(e) {
@@ -25,7 +25,13 @@ export function Modal({ visible, titulo, icono, tipo, children, acciones, onCerr
         if (e.target === e.currentTarget && onCerrar) onCerrar();
       }}
     >
-      <div className="modal-caja" role="dialog" aria-modal="true" aria-label={titulo}>
+      <div
+        className={`modal-caja${ancho ? " modal-caja-ancha" : ""}`}
+        style={ancho ? { width: `min(${ancho}, 100%)` } : undefined}
+        role="dialog"
+        aria-modal="true"
+        aria-label={titulo}
+      >
         <button
           type="button"
           className="modal-cerrar"
