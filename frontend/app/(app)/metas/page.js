@@ -10,6 +10,16 @@ import Selector from "../../../components/Selector";
 import FlujoDinero from "../../../components/FlujoDinero";
 import TarjetaMeta from "../../../components/TarjetaMeta";
 import { Esqueleto, EsqueletoMetas } from "../../../components/Esqueleto";
+import {
+  IconoAlerta,
+  IconoBanco,
+  IconoCheckCirculo,
+  IconoDeshacer,
+  IconoEditar,
+  IconoMas,
+  IconoMetas,
+  IconoTendencia,
+} from "../../../components/Iconos";
 
 function mesActual() {
   const hoy = new Date();
@@ -130,7 +140,7 @@ export default function MetasPage() {
         body: { monto },
       });
       if (meta && meta.completada) {
-        exito("¡Meta cumplida!", `¡Felicidades, lograste: ${meta.nombre}! 🏆`);
+        exito("¡Meta cumplida!", `¡Felicidades, lograste: ${meta.nombre}!`);
       } else {
         exito("Aporte registrado", "El monto se sumó a tu meta de ahorro.");
       }
@@ -200,7 +210,7 @@ export default function MetasPage() {
         </div>
         <div className="fila">
           <button className="btn" onClick={abrirCrear}>
-            ➕ Nueva meta
+            <IconoMas size={16} /> Nueva meta
           </button>
         </div>
       </div>
@@ -212,7 +222,7 @@ export default function MetasPage() {
           <div className="cabecera">
             <span className="etiqueta">Ahorrado en metas</span>
             <span className="icono" aria-hidden="true">
-              🏦
+              <IconoBanco size={20} />
             </span>
           </div>
           <div className="valor ahorro">{formatear(totalAhorrado, moneda)}</div>
@@ -225,7 +235,7 @@ export default function MetasPage() {
           <div className="cabecera">
             <span className="etiqueta">Objetivo total</span>
             <span className="icono" aria-hidden="true">
-              🎯
+              <IconoMetas size={20} />
             </span>
           </div>
           <div className="valor">{formatear(objetivoTotal, moneda)}</div>
@@ -239,7 +249,7 @@ export default function MetasPage() {
           <div className="cabecera">
             <span className="etiqueta">Tasa de ahorro del mes</span>
             <span className="icono" aria-hidden="true">
-              📈
+              <IconoTendencia size={20} />
             </span>
           </div>
           <div className="valor positivo">{tasaAhorro.toFixed(1)}%</div>
@@ -252,7 +262,11 @@ export default function MetasPage() {
           <div className="cabecera">
             <span className="etiqueta">Metas en riesgo</span>
             <span className="icono" aria-hidden="true">
-              {enRiesgo > 0 ? "⚠️" : "✅"}
+              {enRiesgo > 0 ? (
+                <IconoAlerta size={20} />
+              ) : (
+                <IconoCheckCirculo size={20} />
+              )}
             </span>
           </div>
           <div className={`valor ${enRiesgo > 0 ? "negativo" : "positivo"}`}>
@@ -286,7 +300,7 @@ export default function MetasPage() {
         ) : metas.length === 0 ? (
           <div className="vacio-accion">
             <span className="vacio-icono" aria-hidden="true">
-              🎯
+              <IconoMetas size={28} />
             </span>
             <span className="vacio-titulo">Aún no tienes metas de ahorro</span>
             <p className="vacio-detalle">
@@ -315,7 +329,7 @@ export default function MetasPage() {
       <Modal
         visible={modalAbierto}
         titulo={form.id ? "Editar meta" : "Nueva meta"}
-        icono={form.id ? "✏️" : "🎯"}
+        icono={form.id ? <IconoEditar size={24} /> : <IconoMetas size={24} />}
         tipo="info"
         ancho="560px"
         onCerrar={() => setModalAbierto(false)}
@@ -392,7 +406,7 @@ export default function MetasPage() {
       <Modal
         visible={aportesDe !== null}
         titulo={aportesDe ? `Aportes de ${aportesDe.meta.nombre}` : "Aportes"}
-        icono="↩️"
+        icono={<IconoDeshacer size={24} />}
         tipo="info"
         ancho="520px"
         onCerrar={() => setAportesDe(null)}

@@ -16,11 +16,22 @@ import { MONEDAS } from "../../lib/monedas";
 import { MonedaProvider } from "../../lib/dinero";
 import Notificaciones from "../../components/Notificaciones";
 import Selector from "../../components/Selector";
+import {
+  IconoChevronAbajo,
+  IconoDashboard,
+  IconoFinanzas,
+  IconoLlave,
+  IconoSalir,
+  IconoTransacciones,
+  IconoMetas,
+  IconoBuscar,
+  IconoUsuario,
+} from "../../components/Iconos";
 
 const PAGINAS = [
-  { ruta: "/dashboard", etiqueta: "Dashboard", icono: "📊" },
-  { ruta: "/transacciones", etiqueta: "Transacciones", icono: "🧾" },
-  { ruta: "/metas", etiqueta: "Metas", icono: "🎯" },
+  { ruta: "/dashboard", etiqueta: "Dashboard", icono: IconoDashboard },
+  { ruta: "/transacciones", etiqueta: "Transacciones", icono: IconoTransacciones },
+  { ruta: "/metas", etiqueta: "Metas", icono: IconoMetas },
 ];
 
 export default function AppLayout({ children }) {
@@ -109,7 +120,7 @@ export default function AppLayout({ children }) {
       <div className="app">
         <aside className="sidebar">
           <Link href="/dashboard" className="marca">
-            <span aria-hidden="true">💰</span>
+            <IconoFinanzas size={22} />
             <span className="marca-texto">Finanzas</span>
           </Link>
           <nav className="side-nav" aria-label="Principal">
@@ -121,7 +132,7 @@ export default function AppLayout({ children }) {
                 className={pathname === p.ruta ? "activo" : ""}
               >
                 <span className="side-icono" aria-hidden="true">
-                  {p.icono}
+                  <p.icono size={18} />
                 </span>
                 <span className="side-etiqueta">{p.etiqueta}</span>
               </Link>
@@ -139,7 +150,7 @@ export default function AppLayout({ children }) {
 
             <form className="buscador" role="search" onSubmit={buscar}>
               <span className="buscador-icono" aria-hidden="true">
-                🔎
+                <IconoBuscar size={18} />
               </span>
               <input
                 type="search"
@@ -160,11 +171,9 @@ export default function AppLayout({ children }) {
                 aria-haspopup="menu"
                 aria-label={`Menú de ${nombre}`}
               >
-                <span aria-hidden="true">👤</span>
+                <IconoUsuario size={16} />
                 <span className="nombre-texto">{nombre}</span>
-                <span aria-hidden="true" className="flecha">
-                  ▾
-                </span>
+                <IconoChevronAbajo size={14} className="flecha" />
               </button>
 
               {menuAbierto && (
@@ -188,10 +197,10 @@ export default function AppLayout({ children }) {
                     className="menu-item"
                     onClick={() => setMenuAbierto(false)}
                   >
-                    🔑 Cambiar contraseña
+                    <IconoLlave size={16} /> Cambiar contraseña
                   </Link>
                   <button type="button" className="menu-item" onClick={salir}>
-                    🚪 Cerrar sesión
+                    <IconoSalir size={16} /> Cerrar sesión
                   </button>
                 </div>
               )}

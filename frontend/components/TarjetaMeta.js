@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import AnilloProgreso from "./AnilloProgreso";
 import { formatear, useMoneda } from "../lib/dinero";
 import { useClicFuera } from "../lib/hooks";
+import { IconoDeshacer, IconoEditar, IconoEliminar } from "./Iconos";
 import {
   ahorrado,
   estadoMeta,
@@ -57,7 +58,7 @@ export default function TarjetaMeta({
 
   function textoRitmo() {
     if (estado === "completada") {
-      return plazo ? `¡Meta cumplida! 🎉 · ${plazo}` : "¡Meta cumplida! 🎉";
+      return plazo ? `¡Meta cumplida! · ${plazo}` : "¡Meta cumplida!";
     }
     if (requerido === null) {
       return "Sin fecha límite: define un plazo para ver tu ritmo";
@@ -120,7 +121,7 @@ export default function TarjetaMeta({
                     onEditar(meta);
                   }}
                 >
-                  ✏️ Editar meta
+                  <IconoEditar size={15} /> Editar meta
                 </button>
               </li>
               <li>
@@ -133,7 +134,7 @@ export default function TarjetaMeta({
                     onRetirar(meta);
                   }}
                 >
-                  ↩️ Deshacer aporte
+                  <IconoDeshacer size={15} /> Deshacer aporte
                 </button>
               </li>
               <li>
@@ -146,7 +147,7 @@ export default function TarjetaMeta({
                     onEliminar(meta);
                   }}
                 >
-                  🗑️ Eliminar meta
+                  <IconoEliminar size={15} /> Eliminar meta
                 </button>
               </li>
             </ul>

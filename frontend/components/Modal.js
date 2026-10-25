@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { IconoAlerta, IconoCerrar, IconoCheckCirculo, IconoInfo } from "./Iconos";
 
 /**
  * Modal genérico con el diseño del frontend (fondo difuminado, panel
@@ -38,7 +39,7 @@ export function Modal({ visible, titulo, icono, tipo, children, acciones, onCerr
           aria-label="Cerrar"
           onClick={onCerrar}
         >
-          ✕
+          <IconoCerrar size={18} />
         </button>
         {icono && (
           <div
@@ -75,7 +76,7 @@ export function ModalConfirmacion({
     <Modal
       visible={visible}
       titulo={titulo}
-      icono={peligro ? "⚠️" : "ℹ️"}
+      icono={peligro ? <IconoAlerta size={24} /> : <IconoInfo size={24} />}
       tipo={peligro ? "aviso" : "info"}
       onCerrar={onCancelar}
       acciones={
@@ -101,10 +102,10 @@ export function ModalConfirmacion({
 export default Modal;
 
 const ICONOS = {
-  exito: "✓",
-  error: "✕",
-  aviso: "⚠",
-  info: "ℹ",
+  exito: <IconoCheckCirculo size={24} />,
+  error: <IconoCerrar size={24} />,
+  aviso: <IconoAlerta size={24} />,
+  info: <IconoInfo size={24} />,
 };
 
 /**

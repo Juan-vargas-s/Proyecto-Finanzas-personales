@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePopover } from "../lib/hooks";
+import { IconoCheck, IconoChevronAbajo } from "./Iconos";
 
 /**
  * Lista desplegable con el diseño del frontend (reemplaza al <select>
@@ -12,9 +13,8 @@ import { usePopover } from "../lib/hooks";
  * puede flotar sobre cualquier tarjeta y, si no cabe hacia abajo, se abre
  * hacia arriba en vez de quedar cortado por el borde de la pantalla.
  *
- * opciones: [{ valor, etiqueta, icono, color }]
- *  - icono: emoji que se pinta antes de la etiqueta.
- *  - color: color del icono (el de la categoría).
+ * opciones: [{ valor, etiqueta, color }]
+ *  - color: color del punto que se pinta antes de la etiqueta.
  */
 export default function Selector({
   valor,
@@ -43,20 +43,16 @@ export default function Selector({
         onClick={() => setAbierto((v) => !v)}
       >
         <span className="selector-texto">
-          {actual?.icono && (
+          {actual?.color && (
             <span
-              className="selector-icono"
-              style={actual.color ? { color: actual.color } : undefined}
+              className="selector-punto"
+              style={{ background: actual.color }}
               aria-hidden="true"
-            >
-              {actual.icono}
-            </span>
+            />
           )}
           <span>{actual ? actual.etiqueta : placeholder}</span>
         </span>
-        <span className="selector-flecha" aria-hidden="true">
-          ▾
-        </span>
+        <IconoChevronAbajo size={16} className="selector-flecha" />
       </button>
 
       {abierto &&
@@ -85,20 +81,16 @@ export default function Selector({
                   }}
                 >
                   <span>
-                    {o.icono && (
+                    {o.color && (
                       <span
-                        className="selector-icono"
-                        style={o.color ? { color: o.color } : undefined}
+                        className="selector-punto"
+                        style={{ background: o.color }}
                         aria-hidden="true"
-                      >
-                        {o.icono}
-                      </span>
+                      />
                     )}
                     {o.etiqueta}
                   </span>
-                  {String(o.valor) === String(valor) && (
-                    <span aria-hidden="true">✓</span>
-                  )}
+                  {String(o.valor) === String(valor) && <IconoCheck size={16} />}
                 </button>
               </li>
             ))}

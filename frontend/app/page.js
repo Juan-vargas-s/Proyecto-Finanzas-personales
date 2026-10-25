@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { getToken } from "../lib/api";
+import { IconoFinanzas } from "../components/Iconos";
 
 export default function HomePage() {
   useEffect(() => {
@@ -11,7 +12,9 @@ export default function HomePage() {
 
   return (
     <main className="landing">
-      <h1>💰 Finanzas Personales</h1>
+      <h1>
+        <IconoFinanzas size={40} className="logo-inline" /> Finanzas Personales
+      </h1>
       <p>Sistema de finanzas personales en microservicios</p>
       <p className="estado">Redirigiendo…</p>
     </main>

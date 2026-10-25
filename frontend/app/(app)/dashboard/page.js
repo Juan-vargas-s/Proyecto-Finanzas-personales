@@ -7,6 +7,7 @@ import { GraficaPastel, GraficaTendencia } from "../../../components/Graficas";
 import { EsqueletoGrafica } from "../../../components/Esqueleto";
 import { SelectorMes, mesBonito } from "../../../components/Fechas";
 import { useRecuadro } from "../../../components/Modal";
+import { IconoBalance, IconoGasto, IconoIngreso } from "../../../components/Iconos";
 
 function mesActual() {
   const hoy = new Date();
@@ -72,7 +73,7 @@ export default function DashboardPage() {
           <div className="cabecera">
             <span className="etiqueta">Ingresos</span>
             <span className="icono" aria-hidden="true">
-              💰
+              <IconoIngreso size={20} />
             </span>
           </div>
           <div className="valor positivo">
@@ -84,7 +85,7 @@ export default function DashboardPage() {
           <div className="cabecera">
             <span className="etiqueta">Gastos</span>
             <span className="icono" aria-hidden="true">
-              💸
+              <IconoGasto size={20} />
             </span>
           </div>
           <div className="valor negativo">
@@ -96,7 +97,7 @@ export default function DashboardPage() {
           <div className="cabecera">
             <span className="etiqueta">Balance</span>
             <span className="icono" aria-hidden="true">
-              ⚖️
+              <IconoBalance size={20} />
             </span>
           </div>
           <div

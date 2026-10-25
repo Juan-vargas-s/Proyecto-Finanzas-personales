@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePopover } from "../lib/hooks";
+import { IconoCalendario, IconoChevronAbajo } from "./Iconos";
 
 const DIAS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 
@@ -123,11 +124,9 @@ export function SelectorFecha({ valor, onChange, id, max, min, placeholder = "Se
         onClick={alternar}
       >
         <span className="selector-texto">
-          <span aria-hidden="true">📅</span> {valor ? fechaBonita(valor) : placeholder}
+          <IconoCalendario size={16} /> {valor ? fechaBonita(valor) : placeholder}
         </span>
-        <span className="selector-flecha" aria-hidden="true">
-          ▾
-        </span>
+        <IconoChevronAbajo size={16} className="selector-flecha" />
       </button>
 
       {abierto &&
@@ -232,11 +231,9 @@ export function SelectorMes({ valor, onChange, id, placeholder = "Seleccionar me
         onClick={alternar}
       >
         <span className="selector-texto">
-          <span aria-hidden="true">🗓️</span> {valor ? mesBonito(valor) : placeholder}
+          <IconoCalendario size={16} /> {valor ? mesBonito(valor) : placeholder}
         </span>
-        <span className="selector-flecha" aria-hidden="true">
-          ▾
-        </span>
+        <IconoChevronAbajo size={16} className="selector-flecha" />
       </button>
 
       {abierto &&

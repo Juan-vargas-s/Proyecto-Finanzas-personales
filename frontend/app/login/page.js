@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, setSesion } from "../../lib/api";
 import { useRecuadro } from "../../components/Modal";
+import { IconoFinanzas } from "../../components/Iconos";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -41,7 +42,9 @@ export default function LoginPage() {
       {recuadro}
 
       <div className="auth-card">
-        <div className="logo">💰</div>
+        <div className="logo">
+          <IconoFinanzas size={36} />
+        </div>
         <h1>Iniciar sesión</h1>
         <p className="sub">Accede a tus finanzas personales</p>
 

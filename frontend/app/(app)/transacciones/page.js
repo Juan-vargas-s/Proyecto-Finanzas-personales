@@ -9,6 +9,7 @@ import Selector from "../../../components/Selector";
 import AsignarMetaModal from "../../../components/AsignarMetaModal";
 import { SelectorFecha, SelectorMes, fechaBonita, mesBonito } from "../../../components/Fechas";
 import { EsqueletoTabla } from "../../../components/Esqueleto";
+import { IconoBuscar, IconoMetas, IconoTransacciones } from "../../../components/Iconos";
 
 function hoyISO() {
   const d = new Date();
@@ -381,7 +382,7 @@ export default function TransaccionesPage() {
           className={`tab ${pestana === "movimientos" ? "activa" : ""}`}
           onClick={() => setPestana("movimientos")}
         >
-          💳 Movimientos
+          <IconoTransacciones size={16} /> Movimientos
         </button>
         <button
           type="button"
@@ -390,7 +391,7 @@ export default function TransaccionesPage() {
           className={`tab ${pestana === "presupuestos" ? "activa" : ""}`}
           onClick={() => setPestana("presupuestos")}
         >
-          🎯 Presupuestos
+          <IconoMetas size={16} /> Presupuestos
         </button>
       </div>
 
@@ -428,7 +429,11 @@ export default function TransaccionesPage() {
         ) : visibles.length === 0 ? (
           <div className="vacio-accion">
             <span className="vacio-icono" aria-hidden="true">
-              {textoBusqueda ? "🔎" : "🧾"}
+              {textoBusqueda ? (
+                <IconoBuscar size={28} />
+              ) : (
+                <IconoTransacciones size={28} />
+              )}
             </span>
             <span className="vacio-titulo">
               {textoBusqueda
@@ -489,16 +494,14 @@ export default function TransaccionesPage() {
                     <td>
                       <span className="cat-celda">
                         <span
-                          className="cat-icono"
-                          style={
-                            estiloCategoria(todas, t.categoria).color
-                              ? { color: estiloCategoria(todas, t.categoria).color }
-                              : undefined
-                          }
+                          className="cat-punto"
+                          style={{
+                            background:
+                              estiloCategoria(todas, t.categoria).color ||
+                              "var(--texto-2)",
+                          }}
                           aria-hidden="true"
-                        >
-                          {estiloCategoria(todas, t.categoria).icono}
-                        </span>
+                        />
                         <span style={{ textTransform: "capitalize" }}>
                           {t.categoria}
                         </span>
@@ -619,7 +622,7 @@ export default function TransaccionesPage() {
                   type="button"
                   onClick={abrirAsignacion}
                 >
-                  🎯 Asignar a meta
+                  <IconoMetas size={16} /> Asignar a meta
                 </button>
               )}
               {editando && (
@@ -695,7 +698,7 @@ export default function TransaccionesPage() {
         ) : presupuestos.length === 0 ? (
           <div className="vacio-accion">
             <span className="vacio-icono" aria-hidden="true">
-              💸
+              <IconoMetas size={28} />
             </span>
             <span className="vacio-titulo">
               Sin presupuestos para este mes
@@ -728,12 +731,10 @@ export default function TransaccionesPage() {
                   <div className="presupuesto-cabecera">
                     <span className="presupuesto-cat">
                       <span
-                        className="cat-icono"
-                        style={cat.color ? { color: cat.color } : undefined}
+                        className="cat-punto"
+                        style={{ background: cat.color || "var(--texto-2)" }}
                         aria-hidden="true"
-                      >
-                        {cat.icono}
-                      </span>
+                      />
                       <span style={{ textTransform: "capitalize" }}>
                         {p.categoria}
                       </span>

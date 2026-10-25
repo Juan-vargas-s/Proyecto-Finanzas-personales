@@ -24,8 +24,9 @@
 }
 
 .auth-card .logo {
-  font-size: 2rem;
-  text-align: center;
+  color: var(--acento);
+  display: flex;
+  justify-content: center;
   margin-bottom: 0.25rem;
 }
 
@@ -141,6 +142,13 @@
   font-size: 2.5rem;
 }
 
+.landing .logo-inline {
+  display: inline-block;
+  vertical-align: -0.16em;
+  margin-right: 0.35rem;
+  color: var(--acento);
+}
+
 .landing .estado {
   color: var(--exito);
   font-weight: 600;
@@ -213,22 +221,32 @@
   color: var(--texto-acento);
 }
 
-/* ---------- Categorías con icono ---------- */
+/* ---------- Categorías con punto de color ---------- */
 .cat-celda {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
 }
 
-.cat-icono {
-  font-size: 1.05rem;
-  line-height: 1;
+.cat-punto {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
-.selector-icono {
+.selector-punto {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
   margin-right: 0.4rem;
-  font-size: 1rem;
-  line-height: 1;
+  border-radius: 50%;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.selector .selector-texto .selector-punto {
+  margin-right: 0;
 }
 
 .etiqueta-suave {

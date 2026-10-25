@@ -985,7 +985,9 @@
 }
 
 .meta-menu-lista button {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   width: 100%;
   text-align: left;
   background: transparent;

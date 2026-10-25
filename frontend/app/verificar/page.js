@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, setSesion } from "../../lib/api";
 import { useRecuadro } from "../../components/Modal";
+import { IconoSobre } from "../../components/Iconos";
 
 export default function VerificarPage() {
   const router = useRouter();
@@ -65,7 +66,9 @@ export default function VerificarPage() {
     <main className="auth">
       {recuadro}
       <div className="auth-card">
-        <div className="logo">✉️</div>
+        <div className="logo">
+          <IconoSobre size={36} />
+        </div>
         <h1>Verificar cuenta</h1>
         <p className="sub">
           Ingresa el código de 6 dígitos que te enviamos a tu correo

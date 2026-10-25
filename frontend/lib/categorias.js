@@ -32,19 +32,17 @@ export function useCategorias(tipo = null) {
   return { categorias, todas, cargando };
 }
 
-/** Convierte el catálogo en opciones del Selector (con icono y color). */
+/** Convierte el catálogo en opciones del Selector (con punto de color). */
 export function aOpciones(categorias) {
   return categorias.map((c) => ({
     valor: c.nombre,
     etiqueta: c.nombre,
-    icono: c.icono,
     color: c.color,
   }));
 }
 
-/** Icono y color de una categoría por nombre (para pintarla en la tabla). */
+/** Color de una categoría por nombre (para pintar su punto en la tabla). */
 export function estiloCategoria(categorias, nombre) {
   const c = categorias.find((x) => x.nombre === nombre);
-  if (!c) return { icono: "•", color: undefined };
-  return { icono: c.icono, color: c.color };
+  return { color: c?.color };
 }
