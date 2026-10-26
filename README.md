@@ -64,7 +64,9 @@ Este proyecto es un **sistema completo de finanzas personales** implementado uti
 | `GET` | `/api/transacciones/presupuestos/estado?mes=YYYY-MM` | **Estado de todos los presupuestos en una sola llamada** (gasto acumulado, límite, restante, %). |
 | `GET` | `/api/transacciones/presupuestos/{categoria}?usuarioId=X&mes=YYYY-MM` | Gasto acumulado vs límite (usado por Go para alertas ≥80%). |
 | `GET` | `/api/transacciones/tendencia?meses=2026-05,2026-06,...` | Serie temporal para tendencia de 6 meses. |
-| `GET` | `/api/transacciones/categorias` | Catálogo global de categorías (iconos, colores). Sin requerir auth. |
+| `GET` | `/api/transacciones/categorias` | Catálogo de categorías del usuario (requiere JWT). Clona las plantillas globales la primera vez. |
+| `POST` | `/api/transacciones/categorias` | Crear categoría propia (`nombre`, `tipo`, `color`). |
+| `PUT` | `/api/transacciones/categorias/{id}` | Renombrar, cambiar tipo o color. El cambio de nombre se propaga a movimientos y presupuestos. |
 
 ### Reportes Service (Python - Puerto 8000)
 
@@ -90,11 +92,13 @@ Este proyecto es un **sistema completo de finanzas personales** implementado uti
 | `GET` | `/api/metas/stream?token=<jwt>` | **SSE** Server-Sent Events para notificaciones en tiempo real. Valida JWT por query string. |
 | `GET` | `/api/metas/{id}/aportes` | Historial de aportes/retiros de una meta. |
 
-### Catálogo (Java - Mismo servicio de transacciones)
+### Catálogo por usuario (Java - Mismo servicio de transacciones)
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| `GET` | `/api/transacciones/categorias` | Lista global de categorías con iconos y colores. Sin auth requerida. |
+| `GET` | `/api/transacciones/categorias` | Lista las categorías del usuario. Requiere JWT. |
+| `POST` | `/api/transacciones/categorias` | Crea una categoría (`INGRESO` o `GASTO`). |
+| `PUT` | `/api/transacciones/categorias/{id}` | Edita nombre, tipo o color. `ahorro` es reservada. |
 
 ---
 
@@ -140,15 +144,16 @@ Este proyecto es un **sistema completo de finanzas personales** implementado uti
 | `limiteMensual` | Decimal | Límite máximo |
 | `mes` | String | Formato `YYYY-MM` |
 
-#### Entidad Categoría (catálogo global)
+#### Entidad Categoría (catálogo por usuario)
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | `id` | UUID | PK |
-| `nombre` | String | Ej. comida, transporte |
-| `tipo` | Enum | `INGRESO` / `GASTO` |
-| `icono` | String | Emoji o nombre de archivo |
-| `color` | String | Código hex |
+| `usuarioId` | UUID | Dueño; `NULL` identifica plantillas globales |
+| `nombre` | String | Único por usuario (`usuarioId`, `nombre`) |
+| `tipo` | Enum | `INGRESO` / `GASTO` / `AHORRO` |
+| `icono` | String | Compatibilidad legacy; la UI usa el color |
+| `color` | String | Código hex `#rrggbb` |
 | `orden` | Integer |
 
 ### Redis (NoSQL) - Estructuras Clave

@@ -36,6 +36,11 @@ public class MigracionEsquema {
 
     @PostConstruct
     public void migrar() {
+        migrarTipoTransaccion();
+        migrarCategorias();
+    }
+
+    private void migrarTipoTransaccion() {
         try {
             Integer pendientes = jdbc.queryForObject(
                     "SELECT count(*) FROM pg_constraint "
@@ -51,6 +56,32 @@ public class MigracionEsquema {
             log.info("Migracion aplicada: el constraint '{}' admite AHORRO", CONSTRAINT);
         } catch (Exception ex) {
             log.warn("No se pudo migrar el constraint '{}': {}", CONSTRAINT, ex.getMessage());
+        }
+    }
+
+    /**
+     * El catálogo dejó de ser global: cada usuario tiene sus propias filas y
+     * las plantillas viven con usuario_id NULL. Hay que quitar el UNIQUE
+     * histórico sobre nombre y crear el UNIQUE por (usuario_id, nombre).
+     */
+    private void migrarCategorias() {
+        try {
+            jdbc.execute("ALTER TABLE IF EXISTS categorias DROP CONSTRAINT IF EXISTS uk_categorias_nombre");
+            jdbc.execute("DROP INDEX IF EXISTS uk_categorias_nombre");
+
+            Integer existe = jdbc.queryForObject(
+                    "SELECT count(*) FROM pg_constraint "
+                            + "WHERE conname = ? AND conrelid = to_regclass('categorias')",
+                    Integer.class, "uk_categorias_usuario_nombre");
+            if (existe == null || existe == 0) {
+                jdbc.execute("ALTER TABLE categorias "
+                        + "ADD CONSTRAINT uk_categorias_usuario_nombre UNIQUE (usuario_id, nombre)");
+            }
+            jdbc.execute("CREATE UNIQUE INDEX IF NOT EXISTS uk_categorias_global_nombre "
+                    + "ON categorias (lower(nombre)) WHERE usuario_id IS NULL");
+            log.info("Migracion aplicada: categorias por usuario");
+        } catch (Exception ex) {
+            log.warn("No se pudo migrar el catálogo de categorías: {}", ex.getMessage());
         }
     }
 }

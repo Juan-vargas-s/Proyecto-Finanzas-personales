@@ -3,8 +3,8 @@ package com.finanzas.transacciones.dto;
 import java.util.UUID;
 
 /**
- * Categoría del catálogo, tal como la consume el frontend: nombre, tipo,
- * icono y color para pintar cada movimiento sin un mapa duplicado.
+ * Categoría del catálogo del usuario: nombre, tipo y color para pintar cada
+ * movimiento. "reservada" marca la categoría interna de ahorro.
  */
 public record CategoriaResponse(
         UUID id,
@@ -12,5 +12,6 @@ public record CategoriaResponse(
         String tipo,
         String icono,
         String color,
-        Integer orden
+        Integer orden,
+        boolean reservada
 ) {}

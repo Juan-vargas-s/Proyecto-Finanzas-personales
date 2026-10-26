@@ -47,7 +47,7 @@ public class InicializadorCategorias implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         int insertadas = 0;
         for (Categoria c : CATALOGO) {
-            if (!repository.existsByNombreIgnoreCase(c.getNombre())) {
+            if (!repository.existsByUsuarioIdIsNullAndNombreIgnoreCase(c.getNombre())) {
                 repository.save(c);
                 insertadas++;
             }

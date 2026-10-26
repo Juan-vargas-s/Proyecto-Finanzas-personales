@@ -6,6 +6,7 @@ import com.finanzas.transacciones.dto.ResumenMesResponse;
 import com.finanzas.transacciones.dto.TendenciaMesResponse;
 import com.finanzas.transacciones.dto.TransaccionRequest;
 import com.finanzas.transacciones.model.Presupuesto;
+import com.finanzas.transacciones.model.TipoCategoria;
 import com.finanzas.transacciones.model.TipoTransaccion;
 import com.finanzas.transacciones.model.Transaccion;
 import com.finanzas.transacciones.repository.PresupuestoRepository;
@@ -48,7 +49,7 @@ public class TransaccionService {
 
     @Transactional
     public Transaccion crear(UUID usuarioId, TransaccionRequest req) {
-        String categoria = validarCategoria(req.categoria(), req.tipo());
+        String categoria = validarCategoria(usuarioId, req.categoria(), req.tipo());
         Transaccion t = new Transaccion();
         t.setUsuarioId(usuarioId);
         t.setTipo(req.tipo());
@@ -112,7 +113,7 @@ public class TransaccionService {
 
     @Transactional
     public Optional<Transaccion> actualizar(UUID usuarioId, UUID id, TransaccionRequest req) {
-        String categoria = validarCategoria(req.categoria(), req.tipo());
+        String categoria = validarCategoria(usuarioId, req.categoria(), req.tipo());
         return transaccionRepository.findByIdAndUsuarioId(id, usuarioId).map(t -> {
             t.setTipo(req.tipo());
             t.setMonto(req.monto());
@@ -142,7 +143,7 @@ public class TransaccionService {
      * de tipo AHORRO (aportes a metas) usan la categoría reservada "ahorro",
      * por eso se saltan la comprobación.
      */
-    private String validarCategoria(String categoria, TipoTransaccion tipo) {
+    private String validarCategoria(UUID usuarioId, String categoria, TipoTransaccion tipo) {
         String cat = CategoriaService.normalizar(categoria);
         if (cat.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La categoría es obligatoria");
@@ -150,9 +151,12 @@ public class TransaccionService {
         if (tipo == TipoTransaccion.AHORRO) {
             return cat;
         }
-        if (!categoriaService.existe(cat)) {
+        TipoCategoria esperado = tipo == TipoTransaccion.INGRESO
+                ? TipoCategoria.INGRESO
+                : TipoCategoria.GASTO;
+        if (!categoriaService.existe(usuarioId, cat, esperado)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "La categoría '" + cat + "' no existe en el catálogo");
+                    "La categoría '" + cat + "' no existe o no es de tipo " + esperado);
         }
         return cat;
     }
@@ -171,7 +175,7 @@ public class TransaccionService {
 
     @Transactional
     public Presupuesto guardarPresupuesto(UUID usuarioId, PresupuestoRequest req) {
-        String categoria = validarCategoriaPresupuesto(req.categoria());
+        String categoria = validarCategoriaPresupuesto(usuarioId, req.categoria());
         Presupuesto p = presupuestoRepository
                 .findByUsuarioIdAndCategoriaAndMes(usuarioId, categoria, req.mes())
                 .orElseGet(Presupuesto::new);
@@ -187,7 +191,7 @@ public class TransaccionService {
     /** Edita un presupuesto existente (límite, categoría o mes). */
     @Transactional
     public Optional<Presupuesto> actualizarPresupuesto(UUID usuarioId, UUID id, PresupuestoRequest req) {
-        String categoria = validarCategoriaPresupuesto(req.categoria());
+        String categoria = validarCategoriaPresupuesto(usuarioId, req.categoria());
         Optional<Presupuesto> actual = presupuestoRepository.findByIdAndUsuarioId(id, usuarioId);
         if (actual.isEmpty()) {
             return Optional.empty();
@@ -220,14 +224,14 @@ public class TransaccionService {
         return true;
     }
 
-    private String validarCategoriaPresupuesto(String categoria) {
+    private String validarCategoriaPresupuesto(UUID usuarioId, String categoria) {
         String cat = CategoriaService.normalizar(categoria);
         if (cat.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La categoría es obligatoria");
         }
-        if (!categoriaService.existe(cat)) {
+        if (!categoriaService.existe(usuarioId, cat, TipoCategoria.GASTO)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "La categoría '" + cat + "' no existe en el catálogo");
+                    "La categoría '" + cat + "' no existe o no es de tipo GASTO");
         }
         return cat;
     }

@@ -4,12 +4,18 @@ import { useCallback, useEffect, useState } from "react";
 import { api, usuarioId } from "../../../lib/api";
 import { formatear, useMoneda } from "../../../lib/dinero";
 import { aOpciones, estiloCategoria, useCategorias } from "../../../lib/categorias";
+import GestionCategorias from "../../../components/GestionCategorias";
 import { ModalConfirmacion, useRecuadro } from "../../../components/Modal";
 import Selector from "../../../components/Selector";
 import AsignarMetaModal from "../../../components/AsignarMetaModal";
 import { SelectorFecha, SelectorMes, fechaBonita, mesBonito } from "../../../components/Fechas";
 import { EsqueletoTabla } from "../../../components/Esqueleto";
-import { IconoBuscar, IconoMetas, IconoTransacciones } from "../../../components/Iconos";
+import {
+  IconoBuscar,
+  IconoEtiqueta,
+  IconoMetas,
+  IconoTransacciones,
+} from "../../../components/Iconos";
 
 function hoyISO() {
   const d = new Date();
@@ -35,7 +41,12 @@ function formVacio() {
 export default function TransaccionesPage() {
   const uid = usuarioId();
   const moneda = useMoneda();
-  const { categorias, todas } = useCategorias();
+  const {
+    categorias,
+    todas,
+    cargando: cargandoCategorias,
+    recargar: recargarCategoriasBase,
+  } = useCategorias();
   const [pestana, setPestana] = useState("movimientos");
   const [mes, setMes] = useState(mesActual());
   const [transacciones, setTransacciones] = useState([]);
@@ -392,6 +403,15 @@ export default function TransaccionesPage() {
           onClick={() => setPestana("presupuestos")}
         >
           <IconoMetas size={16} /> Presupuestos
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={pestana === "categorias"}
+          className={`tab ${pestana === "categorias" ? "activa" : ""}`}
+          onClick={() => setPestana("categorias")}
+        >
+          <IconoEtiqueta size={16} /> Categorías
         </button>
       </div>
 
@@ -846,6 +866,20 @@ export default function TransaccionesPage() {
         </form>
       </section>
         </>
+      )}
+
+      {pestana === "categorias" && (
+        <section className="panel">
+          <GestionCategorias
+            categorias={todas}
+            cargando={cargandoCategorias}
+            onRecargar={async () => {
+              await recargarCategoriasBase();
+              await cargar(mes);
+            }}
+            onExito={exito}
+          />
+        </section>
       )}
 
       <AsignarMetaModal
