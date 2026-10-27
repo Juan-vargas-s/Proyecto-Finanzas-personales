@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { formatear, useMoneda } from "../lib/dinero";
 import { faltante } from "../lib/calculoMeta";
+import { IconoBalanza, IconoMetas } from "./Iconos";
 
 function dosDecimales(valor) {
   return Math.round(valor * 100) / 100;
@@ -59,7 +60,7 @@ export default function AsignarMetaModal({
     <Modal
       visible={visible}
       titulo="Asignar ingreso a metas"
-      icono="🎯"
+      icono={<IconoMetas size={24} />}
       tipo="info"
       ancho="580px"
       onCerrar={onCerrar}
@@ -133,7 +134,7 @@ export default function AsignarMetaModal({
             onClick={repartirEquitativo}
             disabled={restante <= 0}
           >
-            ⚖️ Repartir el resto por partes iguales
+            <IconoBalanza size={15} /> Repartir el resto por partes iguales
           </button>
         </>
       )}

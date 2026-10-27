@@ -150,8 +150,8 @@ a:hover {
   text-decoration: none;
 }
 
-.marca > span[aria-hidden="true"] {
-  -webkit-text-fill-color: initial;
+.marca svg {
+  color: var(--acento);
 }
 
 .side-nav {
@@ -193,8 +193,9 @@ a:hover {
 
 .side-icono {
   width: 20px;
-  text-align: center;
-  font-size: var(--texto-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
   flex-shrink: 0;
 }
@@ -306,7 +307,7 @@ a:hover {
 
 .buscador-icono {
   color: var(--texto-2);
-  font-size: var(--texto-md);
+  display: inline-flex;
   line-height: 1;
 }
 
@@ -395,7 +396,9 @@ a:hover {
 }
 
 .menu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   width: 100%;
   color: var(--texto);
   padding: var(--espacio-2) 0.55rem;

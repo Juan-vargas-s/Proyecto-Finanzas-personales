@@ -985,7 +985,9 @@
 }
 
 .meta-menu-lista button {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   width: 100%;
   text-align: left;
   background: transparent;
@@ -1569,4 +1571,170 @@
   margin: 0;
   max-width: 42ch;
   font-size: var(--texto-base);
+}
+/* ---------- Gestión de categorías ---------- */
+.gestor-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espacio-4);
+  margin-bottom: var(--espacio-5);
+  flex-wrap: wrap;
+}
+
+.gestor-cabecera h2 {
+  margin: 0;
+  font-size: var(--texto-lg);
+}
+
+.gestor-ayuda {
+  margin: 0.3rem 0 0;
+  max-width: 64ch;
+  color: var(--texto-2);
+  font-size: var(--texto-sm);
+}
+
+.gestor-grupo + .gestor-grupo {
+  margin-top: var(--espacio-5);
+}
+
+.gestor-grupo-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+  color: var(--texto-2);
+  font-size: var(--texto-xs);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.gestor-grupo-titulo span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--texto-2);
+  font-size: 0.7rem;
+  letter-spacing: 0;
+}
+
+.gestor-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(245px, 1fr));
+  gap: 0.65rem;
+}
+
+.gestor-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.gestor-punto {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.gestor-nombre {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--texto);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.gestor-item .badge {
+  flex: 0 0 auto;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.68rem;
+}
+
+.gestor-reservada {
+  flex: 0 0 auto;
+  color: var(--texto-2);
+  font-size: var(--texto-xs);
+}
+
+.campo-color {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.campo .campo-color input[type="color"] {
+  width: 46px;
+  height: var(--control-alto);
+  min-height: var(--control-alto);
+  padding: 0.2rem;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: var(--panel-2);
+  cursor: pointer;
+}
+
+.campo-color code {
+  color: var(--texto-2);
+  font-family: var(--fuente-mono, ui-monospace, monospace);
+  font-size: var(--texto-sm);
+}
+
+@media (max-width: 640px) {
+  .gestor-lista {
+    grid-template-columns: 1fr;
+  }
+
+  .gestor-cabecera .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ---------- Errores de formulario ---------- */
+.error-campo {
+  color: var(--error);
+  font-size: var(--texto-xs);
+}
+
+/* ---------- Segmento tipo transacción ---------- */
+.segmento {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  padding: 0.25rem;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.segmento button {
+  border: none;
+  background: transparent;
+  color: var(--texto-2);
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segmento button.activo {
+  background: linear-gradient(135deg, var(--acento), var(--acento-2));
+  color: #fff;
 }

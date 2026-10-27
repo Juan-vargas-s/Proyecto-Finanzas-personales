@@ -24,8 +24,9 @@
 }
 
 .auth-card .logo {
-  font-size: 2rem;
-  text-align: center;
+  color: var(--acento);
+  display: flex;
+  justify-content: center;
   margin-bottom: 0.25rem;
 }
 
@@ -101,25 +102,38 @@
 }
 
 .control-mes .selector {
-  height: var(--control-alto-sm);
-  min-height: var(--control-alto-sm);
+  height: var(--control-alto);
+  min-height: var(--control-alto);
   box-sizing: border-box;
 }
 
 .control-mes .campo-busqueda {
   width: 180px;
   min-width: 0;
-  height: var(--control-alto-sm);
-  min-height: var(--control-alto-sm);
+  height: var(--control-alto);
+  min-height: var(--control-alto);
   padding: 0 0.75rem;
   box-sizing: border-box;
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-radius: 9px;
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.25;
   -webkit-appearance: none;
   appearance: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.control-mes .campo-busqueda:hover {
+  border-color: var(--acento-30);
 }
 
 .control-mes .campo-busqueda:focus {
   border-color: var(--acento);
   box-shadow: 0 0 0 3px var(--acento-20);
+  outline: none;
 }
 
 .campo .selector-contenedor {
@@ -139,6 +153,13 @@
 
 .landing h1 {
   font-size: 2.5rem;
+}
+
+.landing .logo-inline {
+  display: inline-block;
+  vertical-align: -0.16em;
+  margin-right: 0.35rem;
+  color: var(--acento);
 }
 
 .landing .estado {
@@ -213,22 +234,32 @@
   color: var(--texto-acento);
 }
 
-/* ---------- Categorías con icono ---------- */
+/* ---------- Categorías con punto de color ---------- */
 .cat-celda {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
 }
 
-.cat-icono {
-  font-size: 1.05rem;
-  line-height: 1;
+.cat-punto {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
-.selector-icono {
+.selector-punto {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
   margin-right: 0.4rem;
-  font-size: 1rem;
-  line-height: 1;
+  border-radius: 50%;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.selector .selector-texto .selector-punto {
+  margin-right: 0;
 }
 
 .etiqueta-suave {
@@ -421,6 +452,23 @@
     left: 1rem;
     right: 1rem;
     max-width: none;
+  }
+
+  .control-mes {
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .control-mes .campo-busqueda {
+    flex: 1 1 130px;
+    width: auto;
+    min-width: 0;
+  }
+
+  .control-mes .selector-contenedor.selector-estrecho {
+    flex: 1 1 120px;
+    width: auto;
+    min-width: 0;
   }
 }
 /* ---------- Paneles que solo agrupan tarjetas ----------

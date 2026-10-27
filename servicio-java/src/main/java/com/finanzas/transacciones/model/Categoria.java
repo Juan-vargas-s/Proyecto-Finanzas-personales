@@ -12,19 +12,23 @@ import jakarta.persistence.UniqueConstraint;
 import java.util.UUID;
 
 /**
- * Catálogo de categorías de finanzas. Es global (no depende del usuario):
- * todos comparten el mismo catálogo, con icono y color para pintarlo en la
- * interfaz sin tener que duplicar el mapeo en el frontend.
+ * Catálogo de categorías. Las filas con usuarioId NULL son las plantillas
+ * globales; al primer uso, cada usuario recibe una copia editable de ellas.
  */
 @Entity
 @Table(
         name = "categorias",
-        uniqueConstraints = @UniqueConstraint(name = "uk_categorias_nombre", columnNames = "nombre"))
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_categorias_usuario_nombre",
+                columnNames = {"usuario_id", "nombre"}))
 public class Categoria {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @Column(name = "usuario_id")
+    private UUID usuarioId;
 
     @Column(nullable = false, length = 40)
     private String nombre;
@@ -45,6 +49,12 @@ public class Categoria {
     public Categoria() {}
 
     public Categoria(String nombre, TipoCategoria tipo, String icono, String color, Integer orden) {
+        this(null, nombre, tipo, icono, color, orden);
+    }
+
+    public Categoria(UUID usuarioId, String nombre, TipoCategoria tipo,
+                     String icono, String color, Integer orden) {
+        this.usuarioId = usuarioId;
         this.nombre = nombre;
         this.tipo = tipo;
         this.icono = icono;
@@ -58,6 +68,14 @@ public class Categoria {
 
     public void setId(UUID id) {
         this.id = id;
+    }
+
+    public UUID getUsuarioId() {
+        return usuarioId;
+    }
+
+    public void setUsuarioId(UUID usuarioId) {
+        this.usuarioId = usuarioId;
     }
 
     public String getNombre() {

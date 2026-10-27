@@ -2,19 +2,21 @@
 
 import { useEffect, useState } from "react";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
+  Cell,
   Legend,
-  Line,
-  LineChart,
   Pie,
   PieChart,
-  Cell,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import { formatear, formatearCorto, useMoneda } from "../lib/dinero";
+import { mesBonito } from "./Fechas";
 
 const TOKENS_SERIE = [
   "--acento",
@@ -159,6 +161,21 @@ export function GraficaPastel({ categorias }) {
   );
 }
 
+const MESES_ABR = [
+  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
+];
+
+function formatearMesEje(mesIso) {
+  if (!mesIso || typeof mesIso !== "string") return mesIso;
+  const partes = mesIso.split("-");
+  if (partes.length < 2) return mesIso;
+  const numMes = Number(partes[1]);
+  const anioCorto = partes[0].slice(2);
+  const nombreMes = MESES_ABR[numMes - 1] || partes[1];
+  return `${nombreMes} '${anioCorto}`;
+}
+
 export function GraficaTendencia({ meses }) {
   const moneda = useMoneda();
   const tema = useTema();
@@ -176,44 +193,53 @@ export function GraficaTendencia({ meses }) {
   }
 
   return (
-    <div style={{ width: "100%", height: 300 }}>
+    <div style={{ width: "100%", height: 320 }}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={meses} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={tema.borde} />
-          <XAxis dataKey="mes" stroke={tema.texto2} fontSize={12} />
+        <BarChart
+          data={meses}
+          margin={{ top: 12, right: 16, left: 0, bottom: 4 }}
+          barGap={3}
+          barCategoryGap="22%"
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke={tema.borde} vertical={false} />
+          <XAxis
+            dataKey="mes"
+            stroke={tema.texto2}
+            fontSize={12}
+            tickFormatter={formatearMesEje}
+          />
           <YAxis stroke={tema.texto2} fontSize={12} tickFormatter={dineroCorto} />
           <Tooltip
             formatter={(v, nombre) => [dinero(v), nombre]}
+            labelFormatter={(label) => mesBonito(label)}
             contentStyle={estiloTooltip}
-            labelStyle={{ color: tema.texto }}
+            labelStyle={{ color: tema.texto, fontWeight: 600, marginBottom: 4 }}
             itemStyle={{ color: tema.texto }}
           />
-          <Legend wrapperStyle={{ color: tema.texto2 }} />
-          <Line
-            type="monotone"
-            dataKey="balance"
-            name="Balance"
-            stroke={tema.acento}
-            strokeWidth={2}
-            dot={{ r: 3 }}
+          <Legend
+            wrapperStyle={{ color: tema.texto2, paddingTop: 10 }}
+            iconType="circle"
           />
-          <Line
-            type="monotone"
+          <ReferenceLine y={0} stroke={tema.borde} />
+          <Bar
             dataKey="totalIngresos"
             name="Ingresos"
-            stroke={tema.exito}
-            strokeWidth={2}
-            dot={{ r: 3 }}
+            fill={tema.exito}
+            radius={[4, 4, 0, 0]}
           />
-          <Line
-            type="monotone"
+          <Bar
             dataKey="totalGastos"
             name="Gastos"
-            stroke={tema.error}
-            strokeWidth={2}
-            dot={{ r: 3 }}
+            fill={tema.error}
+            radius={[4, 4, 0, 0]}
           />
-        </LineChart>
+          <Bar
+            dataKey="balance"
+            name="Balance"
+            fill={tema.acento}
+            radius={[4, 4, 0, 0]}
+          />
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

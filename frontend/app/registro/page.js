@@ -7,6 +7,7 @@ import { api } from "../../lib/api";
 import { MONEDAS } from "../../lib/monedas";
 import Selector from "../../components/Selector";
 import { useRecuadro } from "../../components/Modal";
+import { IconoFinanzas } from "../../components/Iconos";
 
 export default function RegistroPage() {
   const router = useRouter();
@@ -56,7 +57,9 @@ export default function RegistroPage() {
     <main className="auth">
       {recuadro}
       <div className="auth-card">
-        <div className="logo">💰</div>
+        <div className="logo">
+          <IconoFinanzas size={36} />
+        </div>
         <h1>Crear cuenta</h1>
         <p className="sub">Regístrate para comenzar a administrar tus finanzas</p>
 

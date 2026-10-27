@@ -12,6 +12,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -21,6 +22,17 @@ public interface TransaccionRepository extends JpaRepository<Transaccion, UUID>,
     Optional<Transaccion> findByIdAndUsuarioId(UUID id, UUID usuarioId);
 
     void deleteByIdAndUsuarioId(UUID id, UUID usuarioId);
+
+    boolean existsByUsuarioIdAndCategoria(UUID usuarioId, String categoria);
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            UPDATE Transaccion t SET t.categoria = :nuevo
+            WHERE t.usuarioId = :usuarioId AND t.categoria = :anterior
+            """)
+    int renombrarCategoria(@Param("usuarioId") UUID usuarioId,
+                           @Param("anterior") String anterior,
+                           @Param("nuevo") String nuevo);
 
     /**
      * Filtros opcionales (tipo, categoria, rango de fechas). Solo se agregan
