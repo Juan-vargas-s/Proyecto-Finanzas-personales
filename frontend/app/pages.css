@@ -102,25 +102,38 @@
 }
 
 .control-mes .selector {
-  height: var(--control-alto-sm);
-  min-height: var(--control-alto-sm);
+  height: var(--control-alto);
+  min-height: var(--control-alto);
   box-sizing: border-box;
 }
 
 .control-mes .campo-busqueda {
   width: 180px;
   min-width: 0;
-  height: var(--control-alto-sm);
-  min-height: var(--control-alto-sm);
+  height: var(--control-alto);
+  min-height: var(--control-alto);
   padding: 0 0.75rem;
   box-sizing: border-box;
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-radius: 9px;
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.25;
   -webkit-appearance: none;
   appearance: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.control-mes .campo-busqueda:hover {
+  border-color: var(--acento-30);
 }
 
 .control-mes .campo-busqueda:focus {
   border-color: var(--acento);
   box-shadow: 0 0 0 3px var(--acento-20);
+  outline: none;
 }
 
 .campo .selector-contenedor {
@@ -439,6 +452,23 @@
     left: 1rem;
     right: 1rem;
     max-width: none;
+  }
+
+  .control-mes {
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .control-mes .campo-busqueda {
+    flex: 1 1 130px;
+    width: auto;
+    min-width: 0;
+  }
+
+  .control-mes .selector-contenedor.selector-estrecho {
+    flex: 1 1 120px;
+    width: auto;
+    min-width: 0;
   }
 }
 /* ---------- Paneles que solo agrupan tarjetas ----------

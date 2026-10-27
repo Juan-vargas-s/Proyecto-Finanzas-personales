@@ -36,7 +36,7 @@ Este proyecto es un **sistema completo de finanzas personales** implementado uti
 
 ---
 
-## 🔌 Endpoints API
+## Endpoints API
 
 ### Auth Service (Node.js - Puerto 3001)
 
@@ -199,14 +199,6 @@ docker compose up --build
 
 Ver  `.env.example` 
 
-### Puntos Críticos de Configuración
-
-1. **Nginx SSE**: El bloque `location = /api/metas/stream` **debe** tener `proxy_buffering off` para que SSE funcione
-2. **JWT en query string**: EventSource no soporta cabeceras, por eso el token viene en `?token=<jwt>`
-3. **Caché Redis TTL 30s**: Los reportes se calculan desde caché, si Redis cae, se recalculan con warning
-4. **SMTP obligatorio**: Sin `SMTP_HOST` y `EMAIL_FROM`, el registro de cuentas está deshabilitado
-
----
 
 ## Tecnologías Utilizadas
 

@@ -8,11 +8,14 @@ import GestionCategorias from "../../../components/GestionCategorias";
 import { ModalConfirmacion, useRecuadro } from "../../../components/Modal";
 import Selector from "../../../components/Selector";
 import AsignarMetaModal from "../../../components/AsignarMetaModal";
+import CrearTransaccionModal from "../../../components/CrearTransaccionModal";
+import EditarTransaccionModal from "../../../components/EditarTransaccionModal";
 import { SelectorFecha, SelectorMes, fechaBonita, mesBonito } from "../../../components/Fechas";
 import { EsqueletoTabla } from "../../../components/Esqueleto";
 import {
   IconoBuscar,
   IconoEtiqueta,
+  IconoMas,
   IconoMetas,
   IconoTransacciones,
 } from "../../../components/Iconos";
@@ -26,16 +29,6 @@ function hoyISO() {
 
 function mesActual() {
   return hoyISO().slice(0, 7);
-}
-
-function formVacio() {
-  return {
-    tipo: "GASTO",
-    monto: "",
-    categoria: "",
-    fecha: hoyISO(),
-    descripcion: "",
-  };
 }
 
 export default function TransaccionesPage() {
@@ -54,8 +47,9 @@ export default function TransaccionesPage() {
   const [estados, setEstados] = useState({});
   const [filtro, setFiltro] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const [form, setForm] = useState(formVacio());
-  const [editando, setEditando] = useState(null);
+  const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
+  const [transaccionAEditar, setTransaccionAEditar] = useState(null);
+  const [datosIngresoAsignar, setDatosIngresoAsignar] = useState(null);
   const [formPres, setFormPres] = useState({
     categoria: "",
     limiteMensual: "",
@@ -72,9 +66,6 @@ export default function TransaccionesPage() {
   const { recuadro, exito, fallo, aviso, limpiar } = useRecuadro();
 
   const opcionesGasto = aOpciones(categorias.filter((c) => c.tipo === "GASTO"));
-  const opcionesIngreso = aOpciones(categorias.filter((c) => c.tipo === "INGRESO"));
-  const opcionesCategoria = (tipo) =>
-    tipo === "INGRESO" ? opcionesIngreso : opcionesGasto;
 
   const cargar = useCallback(async (mesSel) => {
     setCargando(true);
@@ -128,81 +119,22 @@ export default function TransaccionesPage() {
     if (campo instanceof HTMLElement) campo.focus({ preventScroll: true });
   }
 
-  function cambiar(campo) {
-    return (e) => setForm({ ...form, [campo]: e.target.value });
-  }
-
-  function recargarTrasGasto(tipo) {
-    // La verificación de presupuestos es automática: Java publica el evento,
-    // Go reevalúa y la alerta llega sola por SSE. Aquí solo se avisa.
-    if (tipo !== "GASTO") {
-      exito("Ingreso registrado", "El movimiento se guardó correctamente.");
-      return;
-    }
-    exito("Gasto registrado", "El movimiento se guardó correctamente.");
-  }
-
-  async function enviar(e) {
-    e.preventDefault();
+  /** Abre el reparto del ingreso entre las metas de ahorro tras validar en el modal. */
+  async function abrirAsignacionDesdeModal(datos) {
     limpiar();
-    try {
-      const cuerpo = {
-        tipo: form.tipo,
-        monto: parseFloat(form.monto),
-        categoria: form.categoria.trim(),
-        fecha: form.fecha,
-        descripcion: form.descripcion.trim() || null,
-      };
-      const url = editando ? `/api/transacciones/${editando}` : "/api/transacciones/";
-      const metodo = editando ? "PUT" : "POST";
-      await api(url, { method: metodo, body: cuerpo });
-      setForm(formVacio());
-      setEditando(null);
-      if (!editando) {
-        recargarTrasGasto(cuerpo.tipo);
-      } else {
-        exito("Transacción actualizada", "Los cambios se guardaron correctamente.");
-      }
-      await cargar(mes);
-    } catch (err) {
-      fallo(editando ? "No se pudo editar" : "No se pudo registrar", err.message);
-    }
-  }
-
-  function editar(t) {
-    setEditando(t.id);
-    limpiar();
-    setForm({
-      tipo: t.tipo,
-      monto: String(t.monto),
-      categoria: t.categoria,
-      fecha: t.fecha,
-      descripcion: t.descripcion || "",
-    });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function cancelar() {
-    setEditando(null);
-    setForm(formVacio());
-    limpiar();
-  }
-
-  /** Abre el reparto del ingreso entre las metas de ahorro. */
-  async function abrirAsignacion() {
-    limpiar();
-    const monto = parseFloat(form.monto);
+    const monto = parseFloat(datos.monto);
     if (!monto || monto <= 0) {
       fallo("Monto inválido", "Ingresa el monto del ingreso que quieres repartir.");
       return;
     }
-    if (!form.categoria.trim()) {
+    if (!datos.categoria?.trim()) {
       fallo("Falta la categoría", "Elige la categoría del ingreso antes de repartirlo.");
       return;
     }
     try {
       const lista = await api(`/api/metas?usuarioId=${uid}`);
       setMetas(Array.isArray(lista) ? lista : []);
+      setDatosIngresoAsignar(datos);
       setMontoIngreso(monto);
       setAsignando(true);
     } catch (err) {
@@ -215,6 +147,7 @@ export default function TransaccionesPage() {
    * un aporte: genera el evento que Java materializa como transacción AHORRO.
    */
   async function confirmarAsignacion(reparto) {
+    if (!datosIngresoAsignar) return;
     setGuardandoAsignacion(true);
     limpiar();
     try {
@@ -222,10 +155,10 @@ export default function TransaccionesPage() {
         method: "POST",
         body: {
           tipo: "INGRESO",
-          monto: parseFloat(form.monto),
-          categoria: form.categoria.trim(),
-          fecha: form.fecha,
-          descripcion: form.descripcion.trim() || null,
+          monto: parseFloat(datosIngresoAsignar.monto),
+          categoria: datosIngresoAsignar.categoria.trim(),
+          fecha: datosIngresoAsignar.fecha,
+          descripcion: datosIngresoAsignar.descripcion?.trim() || null,
         },
       });
       for (const parte of reparto) {
@@ -235,7 +168,7 @@ export default function TransaccionesPage() {
         });
       }
       setAsignando(false);
-      setForm(formVacio());
+      setDatosIngresoAsignar(null);
       exito(
         "Ingreso asignado",
         `Se registró el ingreso y se repartieron ${reparto.length} aporte(s) a tus metas.`
@@ -441,6 +374,13 @@ export default function TransaccionesPage() {
                 { valor: "AHORRO", etiqueta: "Ahorros" },
               ]}
             />
+            <button
+              type="button"
+              className="btn btn-mini"
+              onClick={() => setModalCrearAbierto(true)}
+            >
+              <IconoMas size={15} /> Nuevo
+            </button>
           </div>
         </div>
 
@@ -475,7 +415,7 @@ export default function TransaccionesPage() {
             ) : (
               <button
                 className="btn"
-                onClick={() => enfocarFormulario("form-movimiento", "monto")}
+                onClick={() => setModalCrearAbierto(true)}
               >
                 Registrar movimiento
               </button>
@@ -546,7 +486,7 @@ export default function TransaccionesPage() {
                         {t.tipo !== "AHORRO" && (
                           <button
                             className="btn btn-secundario btn-mini"
-                            onClick={() => editar(t)}
+                            onClick={() => setTransaccionAEditar(t)}
                           >
                             Editar
                           </button>
@@ -566,103 +506,6 @@ export default function TransaccionesPage() {
           </div>
         )}
       </section>
-
-      <section className="panel">
-          <h2>{editando ? "Editar transacción" : "Registrar transacción"}</h2>
-          <form className="formulario" id="form-movimiento" onSubmit={enviar}>
-            <div className="fila">
-              <div className="campo">
-                <label htmlFor="tipo">Tipo</label>
-                <Selector
-                  id="tipo"
-                  valor={form.tipo}
-                  onChange={(v) =>
-                    // Al cambiar de tipo se limpia la categoría: una categoría
-                    // de gasto no es válida como ingreso (y al revés).
-                    setForm({ ...form, tipo: v, categoria: "" })
-                  }
-                  opciones={[
-                    { valor: "GASTO", etiqueta: "Gasto" },
-                    { valor: "INGRESO", etiqueta: "Ingreso" },
-                  ]}
-                />
-              </div>
-              <div className="campo">
-                <label htmlFor="monto">Monto</label>
-                <input
-                  id="monto"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  placeholder="0.00"
-                  value={form.monto}
-                  onChange={cambiar("monto")}
-                  required
-                />
-              </div>
-            </div>
-            <div className="fila">
-              <div className="campo">
-                <label htmlFor="categoria">Categoría</label>
-                <Selector
-                  id="categoria"
-                  valor={form.categoria}
-                  onChange={(v) => setForm({ ...form, categoria: v })}
-                  opciones={opcionesCategoria(form.tipo)}
-                  placeholder="Elegir categoría"
-                />
-              </div>
-              <div className="campo">
-                <label htmlFor="fecha">Fecha</label>
-                <SelectorFecha
-                  id="fecha"
-                  valor={form.fecha}
-                  onChange={(v) => setForm({ ...form, fecha: v })}
-                  max={hoyISO()}
-                />
-              </div>
-            </div>
-            <div className="campo">
-              <label htmlFor="descripcion">Descripción (opcional)</label>
-              <input
-                id="descripcion"
-                type="text"
-                placeholder="Nota sobre el movimiento"
-                value={form.descripcion}
-                onChange={cambiar("descripcion")}
-              />
-            </div>
-            <div className="fila">
-              <button className="btn" type="submit">
-                {editando ? "Guardar cambios" : "Registrar"}
-              </button>
-              {!editando && form.tipo === "INGRESO" && (
-                <button
-                  className="btn btn-exito"
-                  type="button"
-                  onClick={abrirAsignacion}
-                >
-                  <IconoMetas size={16} /> Asignar a meta
-                </button>
-              )}
-              {editando && (
-                <button
-                  className="btn btn-secundario"
-                  type="button"
-                  onClick={cancelar}
-                >
-                  Cancelar
-                </button>
-              )}
-            </div>
-            {!editando && form.tipo === "INGRESO" && (
-              <p className="form-nota">
-                “Asignar a meta” registra el ingreso y reparte el monto entre tus
-                metas de ahorro: el dinero deja de ser un cubo aislado.
-              </p>
-            )}
-          </form>
-        </section>
         </>
       )}
 
@@ -889,6 +732,28 @@ export default function TransaccionesPage() {
         guardando={guardandoAsignacion}
         onCerrar={() => setAsignando(false)}
         onAsignar={confirmarAsignacion}
+      />
+
+      <CrearTransaccionModal
+        visible={modalCrearAbierto}
+        onCerrar={() => setModalCrearAbierto(false)}
+        onExito={async (titulo, mensaje) => {
+          exito(titulo, mensaje);
+          await cargar(mes);
+        }}
+        onAsignarMeta={abrirAsignacionDesdeModal}
+        categorias={categorias}
+      />
+
+      <EditarTransaccionModal
+        visible={transaccionAEditar !== null}
+        transaccion={transaccionAEditar}
+        onCerrar={() => setTransaccionAEditar(null)}
+        onExito={async (titulo, mensaje) => {
+          exito(titulo, mensaje);
+          await cargar(mes);
+        }}
+        categorias={categorias}
       />
 
       <ModalConfirmacion

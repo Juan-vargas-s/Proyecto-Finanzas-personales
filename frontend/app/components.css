@@ -1705,3 +1705,36 @@
     justify-content: center;
   }
 }
+
+/* ---------- Errores de formulario ---------- */
+.error-campo {
+  color: var(--error);
+  font-size: var(--texto-xs);
+}
+
+/* ---------- Segmento tipo transacción ---------- */
+.segmento {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  padding: 0.25rem;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.segmento button {
+  border: none;
+  background: transparent;
+  color: var(--texto-2);
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segmento button.activo {
+  background: linear-gradient(135deg, var(--acento), var(--acento-2));
+  color: #fff;
+}
